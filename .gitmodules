@@ -1,0 +1,3 @@
+[submodule "cd-spec-delphi-compiler-versions"]
+	path = cd-spec-delphi-compiler-versions
+	url = https://github.com/continuous-delphi/cd-spec-delphi-compiler-versions.git
