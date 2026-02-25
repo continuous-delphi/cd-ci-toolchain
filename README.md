@@ -3,7 +3,7 @@
 ![Status](https://img.shields.io/badge/status-incubator-orange)
 ![License](https://img.shields.io/github/license/continuous-delphi/cd-ci-toolchain)
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
-![Delphi](https://img.shields.io/badge/delphi-2%2B-red)
+![Delphi](https://img.shields.io/badge/delphi-red)
 ![PowerShell](https://img.shields.io/badge/powershell-7.4%2B-blue)
 ![Pester](https://img.shields.io/badge/pester-5.7%2B-blue)
 ![Continuous Delphi](https://img.shields.io/badge/org-continuous--delphi-red)
