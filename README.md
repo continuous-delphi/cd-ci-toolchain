@@ -185,14 +185,6 @@ Both standalone artifacts support the same three-tier dataset resolution priorit
 a newer `delphi-compiler-versions.json` alongside either artifact will take precedence over
 the embedded data without regenerating or recompiling.  
 
-## Development Notes
-
-Operational dependencies and development dependencies are separate concerns.
-
-Operational requirements are what end users need to run the tool. Development requirements
-are what contributors need to build and test it. CI environments (GitHub runner, GitLab
-runner, etc.) are execution environments -- they are not operational dependencies of the
-tool itself.
 
 ## Maturity
 
