@@ -1,31 +1,33 @@
 # cd-ci-toolchain
 
 ![Status](https://img.shields.io/badge/status-incubator-orange)
+![License](https://img.shields.io/github/license/continuous-delphi/cd-ci-toolchain)
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Delphi](https://img.shields.io/badge/delphi-2%2B-red)
 ![PowerShell](https://img.shields.io/badge/powershell-7.4%2B-blue)
 ![Pester](https://img.shields.io/badge/pester-5.7%2B-blue)
-![Platform](https://img.shields.io/badge/platform-windows-lightgrey)
+![Continuous Delphi](https://img.shields.io/badge/org-continuous--delphi-red)
 
-Deterministic Delphi toolchain discovery and normalization for long-lived Delphi systems.
+Deterministic Delphi toolchain discovery and normalization for Delphi systems.
 
 This repository provides two fully independent implementations that share a mission and a
 contract:
 
-- `source/delphi` -- Native Windows console executable
-- `source/pwsh` -- PowerShell 7.4+ implementation
+- `source/delphi` -- Native Delphi Windows console executable
+- `source/pwsh` -- Multi-platform PowerShell 7.4+ implementation
 
 Neither implementation is primary. They serve overlapping but distinct audiences and are both
 first-class deliverables.
 
 ## Philosophy
 
-Continuous Delphi meets Delphi developers where they are.
+`Continuous Delphi` meets Delphi developers where they are.
 
 Whether you are building manually on a desktop PC, running FinalBuilder scripts on a cloned
-server, or ready to adopt GitHub Actions, the tools here work at your level today without
+server, or ready to adopt (or have already adopted) GitHub Actions, the tools here work at your level today without
 requiring you to change everything at once.
 
-The goal is not to replace your workflow - the goal is to incrementally enhance it.
+The goal is _not_ to replace your workflow - the goal is to _incrementally enhance_ it.
 
 ## Two Implementations, One Mission
 
@@ -56,10 +58,9 @@ Dataset resolution priority:
 
 This means the executable works out of the box, but can be updated to a newer dataset
 by placing the JSON file alongside it without recompiling. All output indicates which
-source was used via the `datasetSource` field.
+data source was used via the `datasetSource` field.
 
-This implementation must stand alone and provide immediate value on first run. For many
-shops it will be the only component of this toolkit ever used.
+For many shops, this will be the only implementation used.
 
 ### PowerShell implementation (`source/pwsh`)
 
@@ -72,17 +73,13 @@ shops it will be the only component of this toolkit ever used.
 **Operational requirements:**
 
 - PowerShell 7.4+
-- Windows for registry-based detection commands
+- Windows for registry-based detection commands (RAD Studio currently only installs on Windows)
 
 Dataset resolution priority (if `-DataFile` is not specified):
 
 1. `-DataFile <path>` if specified on the command line
 2. `delphi-compiler-versions.json` found alongside the script
-3. Embedded here-string compiled into the script by the generator
-
-The standalone generated script embeds the dataset as a PowerShell here-string, making
-it a true single-file xcopy deployment with no external dependencies. The embedded data
-is plaintext inside the script and fully auditable without additional tooling.
+3. Embedded `here-string` compiled into the script by the generator
 
 **Development and test requirements:**
 
@@ -90,14 +87,11 @@ is plaintext inside the script and fully auditable without additional tooling.
 - Pester 5.7+
 - CI pins Pester to a specific patch version for reproducibility
 
-The PowerShell implementation integrates cleanly into modern CI pipelines and supports
-structured machine-readable output formats.
-
 ## Shared Contract
 
 - Both implementations provide equivalent behavior and identical exit codes for shared commands
 - Human-readable text output may differ between implementations
-- Machine-readable JSON output must remain stable and match across both tracks
+- Machine-readable JSON output will remain _semantically equivalent_ across both implementations regardless of formatting or whitespace.
 
 ### Shared commands
 
@@ -110,7 +104,7 @@ structured machine-readable output formats.
 
 Both implementations use single-dash PascalCase switches (`-Version`, `-ListKnown`).
 This is the recognized PowerShell standard and is adopted for both implementations to
-ensure identical parameter syntax across both tracks.
+ensure identical parameter syntax.
 
 See [docs/commands.md](docs/commands.md) for full command reference including switches,
 output formats, and any functionality differences between implementations.
@@ -125,13 +119,12 @@ output formats, and any functionality differences between implementations.
 | `3`  | Dataset missing or unreadable                             |
 | `4`  | No Delphi installations detected (DetectInstalled only)   |
 
-Exit codes must match across implementations for equivalent commands.
+Exit codes will match across implementations for equivalent commands.
 
 ### Machine output contract
 
 When JSON output is requested (`-Format json`), both implementations emit a stable JSON
-envelope. Machine-readable JSON output is part of the public contract and must remain
-stable across both implementations.
+envelope. 
 
 Success:
 
@@ -189,7 +182,7 @@ Modern shop doing both?
 
 Both implementations consume the canonical dataset from
 [cd-spec-delphi-compiler-versions](https://github.com/continuous-delphi/cd-spec-delphi-compiler-versions).
-The JSON dataset is the single source of truth. Version tables must not be duplicated in code.
+The JSON dataset is the single source of truth. Version tables should not be duplicated in code.
 
 During development, the dataset is referenced as a Git submodule. Clone with:
 
@@ -198,12 +191,12 @@ git clone --recurse-submodules https://github.com/continuous-delphi/cd-ci-toolch
 ```
 
 The `gen/` folder produces a standalone `pwsh` script with the dataset embedded as a
-PowerShell here-string. (The Delphi executable references the dataset directly as a project
+PowerShell `here-string`. (The Delphi executable references the dataset directly as a project
 resource.)
 
 Both standalone artifacts support the same three-tier dataset resolution priority. Placing
 a newer `delphi-compiler-versions.json` alongside either artifact will take precedence over
-the embedded data without regenerating or recompiling.
+the embedded data without regenerating or recompiling.  
 
 ## Development Notes
 
@@ -234,7 +227,3 @@ This repository follows the Continuous Delphi organization taxonomy. See
 - `docs/org-taxonomy.md` -- naming and tagging conventions
 - `docs/versioning-policy.md` -- release and versioning rules
 - `docs/repo-lifecycle.md` -- lifecycle states and graduation criteria
-
----
-
-*Each component is usable in isolation and delivers value without requiring ecosystem buy-in.*
