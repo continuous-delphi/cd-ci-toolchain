@@ -165,19 +165,6 @@ Error:
 }
 ```
 
-## Decision Guide
-
-```
-Cloud CI or scripting-first environment?
-  -> Start with source/pwsh
-
-Air-gapped, legacy, or security-constrained environment?
-  -> Start with source/delphi
-
-Modern shop doing both?
-  -> Use both. Implementations communicate via stdout and exit codes only.
-```
-
 ## Dataset
 
 Both implementations consume the canonical dataset from
