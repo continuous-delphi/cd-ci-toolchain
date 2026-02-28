@@ -12,6 +12,8 @@
 # Provides (run scope — usable inside BeforeAll / It blocks):
 #   Get-ScriptUnderTestPath  - returns absolute path to cd-ci-toolchain.ps1
 #   Get-MinFixturePath       - returns absolute path to the minimal fixture JSON
+#   Invoke-ToolProcess       - runs cd-ci-toolchain.ps1 as a child process and
+#                              returns [pscustomobject]@{ ExitCode; StdOut; StdErr }
 #
 # PESTER 5 SCOPING NOTE:
 #   Pester 5 isolates the run phase from the discovery phase entirely.
@@ -47,4 +49,34 @@ function Get-ScriptUnderTestPath {
 function Get-MinFixturePath {
   $path = Join-Path $PSScriptRoot 'fixtures' 'delphi-compiler-versions.min.json'
   return [System.IO.Path]::GetFullPath($path)
+}
+
+function Invoke-ToolProcess {
+  param(
+    [Parameter(Mandatory=$true)][string]$ScriptPath,
+    [Parameter()][string[]]$Arguments = @()
+  )
+
+  $psi = [System.Diagnostics.ProcessStartInfo]::new()
+  $psi.FileName = 'pwsh'
+  foreach ($a in @('-NoProfile', '-NonInteractive', '-File', $ScriptPath) + $Arguments) {
+    [void]$psi.ArgumentList.Add($a)
+  }
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError  = $true
+  $psi.UseShellExecute        = $false
+
+  $p = [System.Diagnostics.Process]::new()
+  $p.StartInfo = $psi
+  [void]$p.Start()
+
+  $stdout = $p.StandardOutput.ReadToEnd()
+  $stderr = $p.StandardError.ReadToEnd()
+  $p.WaitForExit()
+
+  [pscustomobject]@{
+    ExitCode = $p.ExitCode
+    StdOut   = ($stdout -split '\r?\n' | Where-Object { $_ -ne '' })
+    StdErr   = ($stderr -split '\r?\n' | Where-Object { $_ -ne '' })
+  }
 }

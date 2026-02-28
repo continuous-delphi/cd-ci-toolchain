@@ -57,15 +57,16 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Output has exactly three lines when generated_utc_date is whitespace-only
 - Output does not include a generated line when generated_utc_date is whitespace-only
 
-### cd-ci-toolchain.ps1 subprocess integration (16 tests)
+### cd-ci-toolchain.ps1 subprocess integration (18 tests)
 
-Invokes the script as a child process; validates exit codes and stdout.
-Covers the dispatch block that the dot-source guard skips during unit tests.
+Invokes the script as a child process via `Invoke-ToolProcess`; validates exit
+codes, stdout, and stderr.  Covers the dispatch block that the dot-source guard
+skips during unit tests.
 
 - No action switches + valid `-DataFile`: exit 0, tool header, all four output lines
 - `-Version` switch + valid `-DataFile`: exit 0, tool header, four output lines
-- `-DataFile` pointing to a missing path: exit 1, no stdout
-- `-DataFile` pointing to malformed JSON: exit 1, no stdout
+- `-DataFile` pointing to a missing path: exit 1, no stdout, stderr contains "Data file not found"
+- `-DataFile` pointing to malformed JSON: exit 1, no stdout, stderr contains "Failed to parse JSON"
 - No `-DataFile`, submodule initialized: exit 0, tool header, four output lines *(requires submodule — see [Submodule initialization](#submodule-initialization))*
 
 ---
