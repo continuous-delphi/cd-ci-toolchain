@@ -1,6 +1,8 @@
 # PesterConfiguration for cd-ci-toolchain PowerShell tests.
-# Run from the repository root with: Invoke-Pester -Configuration (Import-PowerShellDataFile ./tests/pwsh/PesterConfig.psd1)
-# Or simply: Invoke-Pester ./tests/pwsh
+# Run from the repository root with:
+#   Invoke-Pester -Configuration (New-PesterConfiguration -Hashtable (Import-PowerShellDataFile ./tests/pwsh/PesterConfig.psd1))
+# Or via the runner script (location-independent):
+#   ./tests/run-tests.ps1
 #
 # Requires: Pester 5.7+
 
