@@ -2,6 +2,8 @@
 
 ## Running the tests
 
+### To run all tests
+
 From the `tests/` directory:
 
 ```powershell
@@ -15,14 +17,26 @@ Current results: **20 tests, 0 failures**
 
 ---
 
+### To run a single suite during development
+
+From the root directory:
+
+```powershell
+Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
+```
+
+---
+
 ## Test suites
 
 ### Resolve-DefaultDataFilePath (3 tests)
+
 - Returns a path ending with the canonical data file name
 - Returns a path containing the spec submodule directory name
-- Resolves to a path that exists on disk *(filesystem integration test)*
+- Resolves to a path that exists on disk *(requires submodule — see [Submodule initialization](#submodule-initialization))*
 
 ### Import-JsonData (6 tests)
+
 - Returns parsed object with correct schemaVersion
 - Returns parsed object with correct dataVersion
 - Returns parsed object with correct meta.generated_utc_date
@@ -31,6 +45,7 @@ Current results: **20 tests, 0 failures**
 - Throws with "Failed to parse JSON" for malformed JSON
 
 ### Write-VersionInfo (11 tests)
+
 - First output line exactly matches tool header format contract
 - Output includes a line with the dataVersion value
 - Output includes a line with the schemaVersion value
