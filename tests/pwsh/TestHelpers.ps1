@@ -70,6 +70,12 @@ function Invoke-ToolProcess {
   $p.StartInfo = $psi
   [void]$p.Start()
 
+  # NOTE: sequential ReadToEnd calls carry a known deadlock risk — if the child
+  # fills the stderr pipe buffer before stdout is fully consumed (or vice versa),
+  # both processes block waiting for the other side to drain.  This tool produces
+  # only a few lines of output so the buffers will not fill in practice, but if
+  # output volume grows the reads should be moved to concurrent async jobs or
+  # background threads.  See: https://learn.microsoft.com/dotnet/api/system.diagnostics.process.standardoutput#remarks
   $stdout = $p.StandardOutput.ReadToEnd()
   $stderr = $p.StandardError.ReadToEnd()
   $p.WaitForExit()

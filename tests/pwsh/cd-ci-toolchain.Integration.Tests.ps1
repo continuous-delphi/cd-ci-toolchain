@@ -126,8 +126,8 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
       $script:run.StdOut | Should -BeNullOrEmpty
     }
 
-    It 'emits a single-line error to stderr' {
-      $script:run.StdErr.Count | Should -BeGreaterThan 0
+    It 'emits at least one stderr line containing "Data file not found"' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
       ($script:run.StdErr -join "`n") | Should -Match 'Data file not found'
     }
 
@@ -148,8 +148,8 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
       $script:run.StdOut | Should -BeNullOrEmpty
     }
 
-    It 'emits a single-line error to stderr' {
-      $script:run.StdErr.Count | Should -BeGreaterThan 0
+    It 'emits at least one stderr line containing "Failed to parse JSON"' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
       ($script:run.StdErr -join "`n") | Should -Match 'Failed to parse JSON'
     }
 

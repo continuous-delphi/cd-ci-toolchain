@@ -171,7 +171,7 @@ cleaned up in `AfterAll`.
 
 ### Assertion style
 
-- Use `Should -HaveCount` for collection length assertions
+- Use `Should -HaveCount` for collection length assertions; use `Should -Not -BeNullOrEmpty` to assert a collection is non-empty
 - For output line content, prefer `-match 'label\s+value'` over exact string
   matching so that padding changes do not produce cryptic failures
 - Reserve exact `Should -Be` matching for format contracts (e.g. the tool
