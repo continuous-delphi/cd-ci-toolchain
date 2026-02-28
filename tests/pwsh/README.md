@@ -4,7 +4,7 @@
 
 ### To run all tests
 
-From the repository root (or any directory — the script is location-independent):
+From the repository root (or any directory -- the script is location-independent):
 
 ```powershell
 ./tests/run-tests.ps1
@@ -32,7 +32,8 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 
 - Returns a path ending with the canonical data file name
 - Returns a path containing the spec submodule directory name
-- Resolves to a path that exists on disk *(requires submodule — see [Submodule initialization](#submodule-initialization))*
+- Resolves to a path that exists on disk
+  *(requires submodule -- see [Submodule initialization](#submodule-initialization))*
 
 ### Import-JsonData (6 tests)
 
@@ -67,7 +68,8 @@ skips during unit tests.
 - `-Version` switch + valid `-DataFile`: exit 0, tool header, four output lines
 - `-DataFile` pointing to a missing path: exit 1, no stdout, stderr contains "Data file not found"
 - `-DataFile` pointing to malformed JSON: exit 1, no stdout, stderr contains "Failed to parse JSON"
-- No `-DataFile`, submodule initialized: exit 0, tool header, four output lines *(requires submodule — see [Submodule initialization](#submodule-initialization))*
+- No `-DataFile`, submodule initialized: exit 0, tool header, four output lines
+  *(requires submodule -- see [Submodule initialization](#submodule-initialization))*
 
 ---
 
@@ -95,7 +97,7 @@ Every test file must begin with:
 ### Pester 5 scoping rules
 
 Pester 5 isolates the run phase (BeforeAll, It, AfterAll) from the discovery
-phase entirely — both variables and functions defined by a top-level dot-source
+phase entirely -- both variables and functions defined by a top-level dot-source
 are invisible to `BeforeAll` and `It` blocks.  Two rules follow from this:
 
 **Rule 1: Dot-source `TestHelpers.ps1` and the script under test inside the
@@ -171,7 +173,8 @@ cleaned up in `AfterAll`.
 
 ### Assertion style
 
-- Use `Should -HaveCount` for collection length assertions; use `Should -Not -BeNullOrEmpty` to assert a collection is non-empty
+- Use `Should -HaveCount` for collection length assertions; use `Should -Not -BeNullOrEmpty`
+  to assert a collection is non-empty
 - For output line content, prefer `-match 'label\s+value'` over exact string
   matching so that padding changes do not produce cryptic failures
 - Reserve exact `Should -Be` matching for format contracts (e.g. the tool

@@ -91,7 +91,8 @@ Dataset resolution priority (if `-DataFile` is not specified):
 
 - Both implementations provide equivalent behavior and identical exit codes for shared commands
 - Human-readable text output may differ between implementations
-- Machine-readable JSON output will remain _semantically equivalent_ across both implementations regardless of formatting or whitespace.
+- Machine-readable JSON output will remain _semantically equivalent_ across both implementations
+  regardless of formatting or whitespace.
 
 ### Shared commands
 

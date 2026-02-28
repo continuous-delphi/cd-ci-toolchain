@@ -4,12 +4,12 @@
 # Dot-source this file at the top of each *.Tests.ps1:
 #   . "$PSScriptRoot/TestHelpers.ps1"
 #
-# Provides (discovery scope — usable at top level of test files):
+# Provides (discovery scope -- usable at top level of test files):
 #   $ScriptUnderTest  - absolute path to cd-ci-toolchain.ps1
 #   $FixturesDir      - absolute path to tests/pwsh/fixtures/
 #   $MinFixturePath   - absolute path to the minimal valid fixture JSON
 #
-# Provides (run scope — usable inside BeforeAll / It blocks):
+# Provides (run scope -- usable inside BeforeAll / It blocks):
 #   Get-ScriptUnderTestPath  - returns absolute path to cd-ci-toolchain.ps1
 #   Get-MinFixturePath       - returns absolute path to the minimal fixture JSON
 #   Invoke-ToolProcess       - runs cd-ci-toolchain.ps1 as a child process and
@@ -70,7 +70,7 @@ function Invoke-ToolProcess {
   $p.StartInfo = $psi
   [void]$p.Start()
 
-  # NOTE: sequential ReadToEnd calls carry a known deadlock risk — if the child
+  # NOTE: sequential ReadToEnd calls carry a known deadlock risk -- if the child
   # fills the stderr pipe buffer before stdout is fully consumed (or vice versa),
   # both processes block waiting for the other side to drain.  This tool produces
   # only a few lines of output so the buffers will not fill in practice, but if
