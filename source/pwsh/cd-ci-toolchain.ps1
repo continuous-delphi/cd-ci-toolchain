@@ -82,7 +82,7 @@ function Write-VersionInfo {
   Write-Output ("cd-ci-toolchain {0}" -f $ToolVersion)
   Write-Output ("dataVersion     {0}" -f $dataVersion)
   Write-Output ("schemaVersion   {0}" -f $schemaVersion)
-  if ($null -ne $generated -and $generated -ne '') {
+  if (-not [string]::IsNullOrWhiteSpace($generated)) {
     Write-Output ("generated       {0}" -f $generated)
   }
 }
