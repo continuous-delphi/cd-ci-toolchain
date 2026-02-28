@@ -107,7 +107,17 @@ try {
     $DataFile = Resolve-DefaultDataFilePath -ScriptPath $scriptPath
   }
 
-  $data = Import-JsonData -Path $DataFile
+  # NOTE: dataset errors exit here directly (exit 3) rather than propagating
+  # to the outer catch.  As more exit codes are added, consider extracting the
+  # dispatch block into an Invoke-Main function that returns an exit code, with
+  # a single exit at the script's top level.  That eliminates scattered exit
+  # calls and makes the code table easy to audit in one place.
+  try {
+    $data = Import-JsonData -Path $DataFile
+  } catch {
+    Write-Error $_.Exception.Message -ErrorAction Continue
+    exit 3
+  }
 
   if ($doVersion) {
     Write-VersionInfo -ToolVersion $ToolVersion -Data $data
@@ -118,6 +128,6 @@ try {
   exit 0
 } catch {
   # Print a single-line error for CI log readability.
-  Write-Error $_.Exception.Message
+  Write-Error $_.Exception.Message -ErrorAction Continue
   exit 1
 }

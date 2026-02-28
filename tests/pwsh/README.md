@@ -66,8 +66,8 @@ skips during unit tests.
 
 - No action switches + valid `-DataFile`: exit 0, tool header, all four output lines
 - `-Version` switch + valid `-DataFile`: exit 0, tool header, four output lines
-- `-DataFile` pointing to a missing path: exit 1, no stdout, stderr contains "Data file not found"
-- `-DataFile` pointing to malformed JSON: exit 1, no stdout, stderr contains "Failed to parse JSON"
+- `-DataFile` pointing to a missing path: exit 3, no stdout, stderr contains "Data file not found"
+- `-DataFile` pointing to malformed JSON: exit 3, no stdout, stderr contains "Failed to parse JSON"
 - No `-DataFile`, submodule initialized: exit 0, tool header, four output lines
   *(requires submodule -- see [Submodule initialization](#submodule-initialization))*
 

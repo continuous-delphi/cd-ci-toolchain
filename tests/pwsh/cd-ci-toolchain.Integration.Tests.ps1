@@ -17,10 +17,6 @@
   it requires cd-spec-delphi-compiler-versions to be initialized
   (git submodule update --init).
 
-  Known gap: the README documents exit code 3 for "Dataset missing or
-  unreadable" but the current catch block exits 1 for all errors.  The
-  tests below assert the actual behavior (exit 1).
-
   Context 1 - No action switches + valid -DataFile:
     Default behavior is Version.  Validates exit 0 and all four stdout lines.
 
@@ -28,10 +24,10 @@
     Explicit switch produces the same output as the default.
 
   Context 3 - -DataFile path does not exist:
-    Exit 1, no stdout, stderr contains "Data file not found".
+    Exit 3, no stdout, stderr contains "Data file not found".
 
   Context 4 - -DataFile contains malformed JSON:
-    Exit 1, no stdout, stderr contains "Failed to parse JSON".
+    Exit 3, no stdout, stderr contains "Failed to parse JSON".
 
   Context 5 - No -DataFile, submodule present:
     Exercises the Resolve-DefaultDataFilePath branch of the dispatch block
@@ -118,8 +114,8 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
                                         -Arguments @('-DataFile', $missingPath)
     }
 
-    It 'exits with code 1' {
-      $script:run.ExitCode | Should -Be 1
+    It 'exits with code 3' {
+      $script:run.ExitCode | Should -Be 3
     }
 
     It 'produces no stdout' {
@@ -140,8 +136,8 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
                                        -Arguments @('-DataFile', $script:badJsonPath)
     }
 
-    It 'exits with code 1' {
-      $script:run.ExitCode | Should -Be 1
+    It 'exits with code 3' {
+      $script:run.ExitCode | Should -Be 3
     }
 
     It 'produces no stdout' {
