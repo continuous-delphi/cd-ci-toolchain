@@ -17,24 +17,18 @@
     Verifies the exception message contains "Failed to parse JSON".
 #>
 
-. "$PSScriptRoot/TestHelpers.ps1"
-
 # PESTER 5 SCOPING RULES apply here -- see Resolve-DefaultDataFilePath.Tests.ps1
-# for the canonical explanation.  Key points:
-#   - Dot-source the script under test inside BeforeAll, not at top level.
-#   - Re-resolve any needed paths inside BeforeAll using $PSScriptRoot.
+# for the canonical explanation.  Dot-source TestHelpers.ps1 and the script
+# under test inside BeforeAll, not at the top level of the file.
 
 Describe 'Import-JsonData' {
 
   BeforeAll {
-    $script:scriptUnderTest = Join-Path $PSScriptRoot '..' '..' 'source' 'pwsh' 'cd-ci-toolchain.ps1'
-    $script:scriptUnderTest = [System.IO.Path]::GetFullPath($script:scriptUnderTest)
+    . "$PSScriptRoot/TestHelpers.ps1"
+    $script:scriptUnderTest = Get-ScriptUnderTestPath
     . $script:scriptUnderTest
 
-    # Re-resolve the minimal fixture path (cannot use $MinFixturePath from
-    # TestHelpers.ps1 here -- it lives in discovery scope, not run scope).
-    $script:fixturePath = Join-Path $PSScriptRoot 'fixtures' 'delphi-compiler-versions.min.json'
-    $script:fixturePath = [System.IO.Path]::GetFullPath($script:fixturePath)
+    $script:fixturePath = Get-MinFixturePath
   }
 
   Context 'Given a valid JSON file' {

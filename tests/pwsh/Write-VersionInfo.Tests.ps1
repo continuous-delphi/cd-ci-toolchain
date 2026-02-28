@@ -27,16 +27,15 @@
     the same way as '' and $null.)
 #>
 
-. "$PSScriptRoot/TestHelpers.ps1"
-
 # PESTER 5 SCOPING RULES apply here -- see Resolve-DefaultDataFilePath.Tests.ps1
-# for the canonical explanation.
+# for the canonical explanation.  Dot-source TestHelpers.ps1 and the script
+# under test inside BeforeAll, not at the top level of the file.
 
 Describe 'Write-VersionInfo' {
 
   BeforeAll {
-    $script:scriptUnderTest = Join-Path $PSScriptRoot '..' '..' 'source' 'pwsh' 'cd-ci-toolchain.ps1'
-    $script:scriptUnderTest = [System.IO.Path]::GetFullPath($script:scriptUnderTest)
+    . "$PSScriptRoot/TestHelpers.ps1"
+    $script:scriptUnderTest = Get-ScriptUnderTestPath
     . $script:scriptUnderTest
   }
 

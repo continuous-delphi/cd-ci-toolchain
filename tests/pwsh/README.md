@@ -4,16 +4,15 @@
 
 ### To run all tests
 
-From the `tests/` directory:
+From the repository root (or any directory — the script is location-independent):
 
 ```powershell
-./run-tests.ps1
+./tests/run-tests.ps1
 ```
 
 This sets execution policy to `Bypass` for the process, imports Pester 5.7+,
-and runs all test suites under `tests/pwsh/` with `Detailed` output.
-
-Current results: **20 tests, 0 failures**
+loads `PesterConfig.psd1`, and runs all test suites under `tests/pwsh/` with
+`Detailed` output and NUnit XML results written to `tests/pwsh/results/`.
 
 ---
 
@@ -58,6 +57,17 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Output has exactly three lines when generated_utc_date is whitespace-only
 - Output does not include a generated line when generated_utc_date is whitespace-only
 
+### cd-ci-toolchain.ps1 subprocess integration (16 tests)
+
+Invokes the script as a child process; validates exit codes and stdout.
+Covers the dispatch block that the dot-source guard skips during unit tests.
+
+- No action switches + valid `-DataFile`: exit 0, tool header, all four output lines
+- `-Version` switch + valid `-DataFile`: exit 0, tool header, four output lines
+- `-DataFile` pointing to a missing path: exit 1, no stdout
+- `-DataFile` pointing to malformed JSON: exit 1, no stdout
+- No `-DataFile`, submodule initialized: exit 0, tool header, four output lines *(requires submodule — see [Submodule initialization](#submodule-initialization))*
+
 ---
 
 ## Standards for new PowerShell test files
@@ -83,41 +93,36 @@ Every test file must begin with:
 
 ### Pester 5 scoping rules
 
-Pester 5 has strict scoping behavior that differs from Pester 4. Two rules
-must be followed or tests will fail with `CommandNotFoundException` or silent
-variable loss:
+Pester 5 isolates the run phase (BeforeAll, It, AfterAll) from the discovery
+phase entirely — both variables and functions defined by a top-level dot-source
+are invisible to `BeforeAll` and `It` blocks.  Two rules follow from this:
 
-**Rule 1: Dot-source the script under test inside `BeforeAll`, not at the top
-level of the file.**
+**Rule 1: Dot-source `TestHelpers.ps1` and the script under test inside the
+Describe-level `BeforeAll`, not at the top level of the file.**
 
-Top-level dot-sourcing runs during the discovery phase. Functions loaded there
-are not visible inside `It` blocks. The correct pattern:
+The Describe-level `BeforeAll` runs once before all nested blocks, so anything
+dot-sourced there is available to every `Context` and `It` within that
+`Describe`.  The correct pattern:
 
 ```powershell
 Describe 'MyFunction' {
   BeforeAll {
-    $script:scriptUnderTest = Join-Path $PSScriptRoot '..' '..' 'source' 'pwsh' 'cd-ci-toolchain.ps1'
-    $script:scriptUnderTest = [System.IO.Path]::GetFullPath($script:scriptUnderTest)
+    . "$PSScriptRoot/TestHelpers.ps1"
+    $script:scriptUnderTest = Get-ScriptUnderTestPath
     . $script:scriptUnderTest
+
+    $script:fixturePath = Get-MinFixturePath
   }
   ...
 }
 ```
 
-**Rule 2: Re-resolve paths inside `BeforeAll` using `$PSScriptRoot` directly.**
+`Get-ScriptUnderTestPath` and `Get-MinFixturePath` are helper functions
+defined in `TestHelpers.ps1` that return fully-resolved absolute paths.
+Using functions rather than the plain `$ScriptUnderTest` / `$MinFixturePath`
+variables lets all path logic stay in one place.
 
-Variables set in `TestHelpers.ps1` (such as `$MinFixturePath`) are available
-during discovery but not during the run phase. Do not rely on them inside
-`BeforeAll`. Re-derive any needed paths from `$PSScriptRoot`:
-
-```powershell
-BeforeAll {
-  $script:fixturePath = Join-Path $PSScriptRoot 'fixtures' 'delphi-compiler-versions.min.json'
-  $script:fixturePath = [System.IO.Path]::GetFullPath($script:fixturePath)
-}
-```
-
-**Rule 3: Use `$script:` scope for all shared variables.**
+**Rule 2: Use `$script:` scope for all variables shared across `It` blocks.**
 
 Variables assigned in `BeforeAll` must use the `$script:` prefix to be
 visible inside `It` blocks within the same `Describe` or `Context`.
@@ -175,9 +180,10 @@ cleaned up in `AfterAll`.
 
 ### Submodule initialization
 
-The filesystem existence test for `Resolve-DefaultDataFilePath` requires the
-`cd-spec-delphi-compiler-versions` submodule to be initialized. If that test
-fails with "path does not exist", run:
+Two tests require the `cd-spec-delphi-compiler-versions` submodule to be
+initialized: the filesystem existence test in `Resolve-DefaultDataFilePath`
+and the no-`-DataFile` context in the subprocess integration suite.  If
+either fails with "path does not exist", run:
 
 ```powershell
 git submodule update --init

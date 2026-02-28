@@ -15,47 +15,37 @@
     Requires cd-spec-delphi-compiler-versions to be present as a submodule.
 #>
 
-. "$PSScriptRoot/TestHelpers.ps1"
-
 # PESTER 5 SCOPING RULES - this file demonstrates the required pattern:
 #
-#   Rule 1: The dot-source of the script under test belongs inside BeforeAll,
-#   not here at the top level. Top-level dot-sourcing loads functions into
-#   discovery scope, which does not carry forward into It blocks.
+#   Rule 1: Dot-source both TestHelpers.ps1 and the script under test inside
+#   BeforeAll, not at the top level of the file.  Pester 5 isolates the run
+#   phase from the discovery phase entirely -- top-level dot-sources reach
+#   discovery scope only and are invisible to BeforeAll and It blocks.
 #
-#   Rule 2: $ScriptUnderTest from TestHelpers.ps1 is not available inside
-#   BeforeAll. Re-resolve the path using $PSScriptRoot directly inside
-#   BeforeAll and store in $script: scope for use across It blocks.
+#   Rule 2: Use $script: scope for all variables shared across It blocks.
 
 Describe 'Resolve-DefaultDataFilePath' {
 
   BeforeAll {
-    $script:scriptUnderTest = Join-Path $PSScriptRoot '..' '..' 'source' 'pwsh' 'cd-ci-toolchain.ps1'
-    $script:scriptUnderTest = [System.IO.Path]::GetFullPath($script:scriptUnderTest)
+    . "$PSScriptRoot/TestHelpers.ps1"
+    $script:scriptUnderTest = Get-ScriptUnderTestPath
     . $script:scriptUnderTest
   }
 
   Context 'Given a script path in a standard source/pwsh layout' {
 
-    It 'returns a path ending with the canonical data file name' {
-      # Arrange
-      $fakeScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) `
-                                  'repo\source\pwsh\cd-ci-toolchain.ps1'
-      # Act
-      $result = Resolve-DefaultDataFilePath -ScriptPath $fakeScriptPath
+    BeforeAll {
+      $fakeRepo              = Join-Path ([System.IO.Path]::GetTempPath()) 'repo'
+      $script:fakeScriptPath = Join-Path $fakeRepo 'source' 'pwsh' 'cd-ci-toolchain.ps1'
+    }
 
-      # Assert
+    It 'returns a path ending with the canonical data file name' {
+      $result = Resolve-DefaultDataFilePath -ScriptPath $script:fakeScriptPath
       $result | Should -Match ([regex]::Escape('delphi-compiler-versions.json'))
     }
 
     It 'returns a path containing the spec submodule directory name' {
-      # Arrange
-      $fakeScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) `
-                                  'repo\source\pwsh\cd-ci-toolchain.ps1'
-      # Act
-      $result = Resolve-DefaultDataFilePath -ScriptPath $fakeScriptPath
-
-      # Assert
+      $result = Resolve-DefaultDataFilePath -ScriptPath $script:fakeScriptPath
       $result | Should -Match ([regex]::Escape('cd-spec-delphi-compiler-versions'))
     }
 
