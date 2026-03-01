@@ -22,7 +22,7 @@ first-class deliverables.
 
 ## TLDR;
 
-Curently, these work.  More options being built
+Currently, these work.  More options being built
 
 ```powershell
 pwsh delphi-toolchain-inspect.ps1
@@ -34,6 +34,7 @@ pwsh delphi-toolchain-inspect.ps1 -Resolve D7 -Format json
 pwsh delphi-toolchain-inspect.ps1 -ListKnown
 pwsh delphi-toolchain-inspect.ps1 -ListKnown -Format json
 ```
+todo: `-DetectInstalled`
 
 ## Philosophy
 
