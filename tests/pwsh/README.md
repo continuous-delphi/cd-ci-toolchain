@@ -104,7 +104,74 @@ then `aliases` array.  All comparisons are case-insensitive.
 - Text format, all fields populated: VER150 and VER370 entry lines present; VER150 line contains compilerVersion and productName values; total line count is exactly 2
 - `-Format json`, all fields populated: output is a single item that parses as valid JSON; ok is true; command is "listKnown"; result.schemaVersion, result.dataVersion, result.generatedUtcDate match dataset values; result.versions has 2 entries; first entry has verDefine, productName, regKeyRelativePath, aliases, and notes fields
 
-### delphi-toolchain-inspect.ps1 subprocess integration (86 tests)
+### Test-EnvOptionsLibraryPath (9 tests)
+
+Tests XML parsing of EnvOptions.proj for Delphi library path detection.
+Uses temporary XML files created per-Context; all cleaned up in AfterAll.
+
+- Win32: returns true when DelphiLibraryPath is present and non-empty; does not throw
+- Win64: returns true when DelphiLibraryPathWin64 is present and non-empty
+- Win32: returns false when DelphiLibraryPath node is absent
+- Win32: returns false when DelphiLibraryPath is empty
+- Returns false (and does not throw) when the file does not exist
+- Returns false (and does not throw) when the file contains malformed XML
+
+### Get-DccReadiness (37 tests)
+
+Tests DCC installation readiness for all states.
+Uses `Mock Get-RegistryRootDir` and `Mock Test-Path`; mocks are scoped per Context.
+
+For `Should -Invoke` assertions, the function under test is called inside the `It`
+body because Pester 5 only counts calls made during the current test run (not
+calls from an enclosing `BeforeAll`).
+
+- notApplicable when DCC not in supportedBuildSystems: readiness, registryFound=$null,
+  component fields $null, Get-RegistryRootDir not called (vacuous -- BeforeAll calls
+  do not count per-test; behavioral tests cover this path)
+- notApplicable when Platform not in supportedPlatforms: readiness, registryFound=$null
+- notFound when regKeyRelativePath is null: readiness, registryFound=$false, fields $null
+- notFound when registry returns null: readiness, registryFound=$false, fields $null
+- ready (Win32): readiness/registryFound/rootDirExists/compilerFound/cfgFound all true;
+  dcc32.exe and dcc32.cfg paths verified via Should -Invoke ParameterFilter
+- ready (Win64): readiness=ready; dcc64.exe and dcc64.cfg paths verified
+- partialInstall when rootDirExists=false: readiness, registryFound=true, rootDirExists=false
+- partialInstall when compilerFound=false: readiness, compilerFound=false, cfgFound=true
+- partialInstall when cfgFound=false: readiness, cfgFound=false, compilerFound=true
+
+### Get-MSBuildReadiness (31 tests)
+
+Tests MSBuild installation readiness for all states.
+Uses `Mock Get-RegistryRootDir`, `Mock Test-Path`, and `Mock Test-EnvOptionsLibraryPath`.
+
+- notApplicable when MSBuild not in supportedBuildSystems: readiness, registryFound=$null
+- notApplicable when Platform not in supportedPlatforms: readiness, registryFound=$null
+- notFound when regKeyRelativePath is null: readiness, registryFound=$false
+- notFound when registry returns null: readiness, registryFound=$false, fields $null
+- ready (Win32): all boolean fields true; rsvars.bat path verified via Should -Invoke
+- partialInstall when rootDirExists=false: readiness, rootDirExists=false
+- partialInstall when rsvarsFound=false: readiness, rsvarsFound=false, envOptionsFound=true
+- partialInstall when envOptionsFound=false: readiness, envOptionsFound=false,
+  envOptionsHasLibraryPath=$null, Test-EnvOptionsLibraryPath not called
+- partialInstall when envOptionsHasLibraryPath=false: readiness, field=false
+- bdsVersion extracted from regKeyRelativePath leaf: EnvOptions.proj path contains
+  version component (37.0) from VER370's registry key
+
+### Write-DetectInstalledOutput (32 tests)
+
+Tests text and JSON output formatting.
+Uses in-memory pscustomobject arrays -- no mocking required.
+
+- Text, DCC, all notFound/notApplicable: exactly one line "No installations found"
+- Text, DCC, one ready entry: header line, all DCC field lines, no MSBuild-specific lines
+- Text, DCC, two entries: two header lines present, blank separator between blocks
+- Text, DCC, mixed: notFound and notApplicable entries suppressed; only ready appears
+- Text, MSBuild, null envOptionsHasLibraryPath: shows "null" string; no DCC-specific lines
+- JSON, DCC mode: ok=true/command=detectInstalled/result.platform+buildSystem+installations;
+  notApplicable entry has registryFound=null; notFound entry has registryFound=false
+- JSON, MSBuild mode: result.buildSystem=MSBuild; MSBuild-specific fields present;
+  notApplicable entry has registryFound=null
+
+### delphi-toolchain-inspect.ps1 subprocess integration (107 tests)
 
 Invokes the script as a child process via `Invoke-ToolProcess`; validates exit
 codes, stdout, and stderr.  Covers the dispatch block that the dot-source guard
@@ -131,6 +198,14 @@ skips during unit tests.
 - `-ListKnown` + valid `-DataFile`: exit 0, exactly 2 stdout lines, VER150 entry line present, clean stderr
 - `-ListKnown -Format json` + valid `-DataFile`: exit 0, stdout parses as JSON, ok=true/command=listKnown, result.versions non-empty, clean stderr
 - `-Format yaml` (invalid value): exit 1 (parameter binder rejects ValidateSet value), no stdout, stderr present
+- `-DetectInstalled -Platform Win32 -BuildSystem DCC` (text): exit 6, stdout is "No installations found", clean stderr
+- `-DetectInstalled -Platform Win32 -BuildSystem DCC -Format json`: exit 6, JSON ok=true/command=detectInstalled,
+  result.platform=Win32/buildSystem=DCC, 3 installations; VER999 (MSBuild-only) has
+  readiness=notApplicable/registryFound=null; VER150 has readiness=notFound/registryFound=false; clean stderr
+- `-DetectInstalled -Platform Win32 -BuildSystem MSBuild -Format json`: exit 6, JSON ok=true/command=detectInstalled,
+  result.buildSystem=MSBuild, clean stderr
+- `-DetectInstalled` without `-Platform`: exit 1 (parameter binding), no stdout, stderr present
+- `-DetectInstalled` without `-BuildSystem`: exit 1 (parameter binding), no stdout, stderr present
 
 The error text for the binder-failure cases is produced by PowerShell's parameter
 binder, not by the script.  The exact phrasing is version-dependent; the tests

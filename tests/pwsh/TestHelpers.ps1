@@ -9,11 +9,13 @@
 #   $FixturesDir        - absolute path to tests/pwsh/fixtures/
 #   $MinFixturePath     - absolute path to the minimal valid fixture JSON
 #   $ResolveFixturePath - absolute path to the resolve fixture JSON
+#   $DetectFixturePath  - absolute path to the detect fixture JSON
 #
 # Provides (run scope -- usable inside BeforeAll / It blocks):
 #   Get-ScriptUnderTestPath    - returns absolute path to delphi-toolchain-inspect.ps1
 #   Get-MinFixturePath         - returns absolute path to the minimal fixture JSON
 #   Get-ResolveFixturePath     - returns absolute path to the resolve fixture JSON
+#   Get-DetectFixturePath      - returns absolute path to the detect fixture JSON
 #   Invoke-ToolProcess         - runs delphi-toolchain-inspect.ps1 as a child process and
 #                                returns [pscustomobject]@{ ExitCode; StdOut; StdErr }
 #
@@ -40,6 +42,7 @@ $here               = $PSScriptRoot
 $FixturesDir        = Join-Path $here 'fixtures'
 $MinFixturePath     = Join-Path $FixturesDir 'delphi-compiler-versions.min.json'
 $ResolveFixturePath = Join-Path $FixturesDir 'delphi-compiler-versions.resolve.json'
+$DetectFixturePath  = Join-Path $FixturesDir 'delphi-compiler-versions.detect.json'
 
 $ScriptUnderTest = Join-Path $here '..' '..' 'source' 'pwsh' 'delphi-toolchain-inspect.ps1'
 $ScriptUnderTest = [System.IO.Path]::GetFullPath($ScriptUnderTest)
@@ -56,6 +59,11 @@ function Get-MinFixturePath {
 
 function Get-ResolveFixturePath {
   $path = Join-Path $PSScriptRoot 'fixtures' 'delphi-compiler-versions.resolve.json'
+  return [System.IO.Path]::GetFullPath($path)
+}
+
+function Get-DetectFixturePath {
+  $path = Join-Path $PSScriptRoot 'fixtures' 'delphi-compiler-versions.detect.json'
   return [System.IO.Path]::GetFullPath($path)
 }
 

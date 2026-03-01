@@ -94,6 +94,31 @@
   Context 19 - -ListKnown -Format json with valid -DataFile:
     Exit 0, stdout parses as valid JSON, ok=true, command='listKnown',
     result.versions is non-empty.  Clean stderr.
+
+  Contexts 20-24 cover the -DetectInstalled dispatch branch.  All supply -DataFile
+  explicitly using the detect fixture (delphi-compiler-versions.detect.json).
+  The detect fixture has 3 entries: VER150 (DCC/Win32), VER999 (MSBuild/Win32 synthetic),
+  VER370 (DCC+MSBuild/Win32+Win64).  The test machine has no Delphi installed so all
+  registry checks return notFound; VER999 is notApplicable for DCC builds.
+
+  Context 20 - -DetectInstalled -Platform Win32 -BuildSystem DCC (text mode):
+    Exit 6 (no installations found), stdout is "No installations found", clean stderr.
+
+  Context 21 - -DetectInstalled -Platform Win32 -BuildSystem DCC -Format json:
+    Exit 6, stdout parses as JSON, ok=true, command=detectInstalled,
+    result.platform=Win32/result.buildSystem=DCC, 3 installations,
+    VER999 has registryFound=null (notApplicable), VER150/VER370 have registryFound=false.
+    Clean stderr.
+
+  Context 22 - -DetectInstalled -Platform Win32 -BuildSystem MSBuild -Format json:
+    Exit 6, stdout parses as JSON, ok=true, command=detectInstalled,
+    result.buildSystem=MSBuild.  Clean stderr.
+
+  Context 23 - -DetectInstalled without -Platform:
+    Exit 1 (PowerShell parameter binding rejects the invocation), no stdout, stderr present.
+
+  Context 24 - -DetectInstalled without -BuildSystem:
+    Exit 1 (PowerShell parameter binding rejects the invocation), no stdout, stderr present.
 #>
 
 Describe 'delphi-toolchain-inspect.ps1 (subprocess)' {
@@ -103,6 +128,7 @@ Describe 'delphi-toolchain-inspect.ps1 (subprocess)' {
     $script:scriptPath         = Get-ScriptUnderTestPath
     $script:fixturePath        = Get-MinFixturePath
     $script:resolveFixturePath = Get-ResolveFixturePath
+    $script:detectFixturePath  = Get-DetectFixturePath
 
     $script:badJsonPath = Join-Path ([System.IO.Path]::GetTempPath()) 'delphi-toolchain-inspect-integration-bad.json'
     Set-Content -LiteralPath $script:badJsonPath -Value '{ bad json' -Encoding UTF8NoBOM
@@ -621,6 +647,159 @@ Describe 'delphi-toolchain-inspect.ps1 (subprocess)' {
 
     It 'produces no stderr' {
       $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -DetectInstalled -Platform Win32 -BuildSystem DCC (text mode, no installations)' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-DetectInstalled', '-Platform', 'Win32', '-BuildSystem', 'DCC', '-DataFile', $script:detectFixturePath)
+    }
+
+    It 'exits with code 6 (no installations found)' {
+      $script:run.ExitCode | Should -Be 6
+    }
+
+    It 'stdout has exactly one line' {
+      $script:run.StdOut | Should -HaveCount 1
+    }
+
+    It 'stdout line is "No installations found"' {
+      # StdOut may be a scalar string (single line) -- pipe directly rather than indexing
+      $script:run.StdOut | Should -Be 'No installations found'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -DetectInstalled -Platform Win32 -BuildSystem DCC -Format json' {
+
+    BeforeAll {
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-DetectInstalled', '-Platform', 'Win32', '-BuildSystem', 'DCC', '-Format', 'json', '-DataFile', $script:detectFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 6' {
+      $script:run.ExitCode | Should -Be 6
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is true and command is detectInstalled' {
+      $script:json.ok      | Should -Be $true
+      $script:json.command | Should -Be 'detectInstalled'
+    }
+
+    It 'JSON result.platform is Win32' {
+      $script:json.result.platform | Should -Be 'Win32'
+    }
+
+    It 'JSON result.buildSystem is DCC' {
+      $script:json.result.buildSystem | Should -Be 'DCC'
+    }
+
+    It 'JSON result.installations has 3 entries (one per dataset entry)' {
+      $script:json.result.installations | Should -HaveCount 3
+    }
+
+    It 'VER999 (MSBuild-only) entry has readiness=notApplicable and registryFound=null' {
+      # @() forces empty array -- Where-Object returns $null under StrictMode when no matches
+      $entry = @($script:json.result.installations | Where-Object { $_.verDefine -eq 'VER999' })[0]
+      $entry | Should -Not -BeNull
+      $entry.readiness     | Should -Be 'notApplicable'
+      $entry.registryFound | Should -BeNull
+    }
+
+    It 'VER150 (DCC/Win32) entry has readiness=notFound and registryFound=false' {
+      $entry = @($script:json.result.installations | Where-Object { $_.verDefine -eq 'VER150' })[0]
+      $entry | Should -Not -BeNull
+      $entry.readiness     | Should -Be 'notFound'
+      $entry.registryFound | Should -Be $false
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -DetectInstalled -Platform Win32 -BuildSystem MSBuild -Format json' {
+
+    BeforeAll {
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-DetectInstalled', '-Platform', 'Win32', '-BuildSystem', 'MSBuild', '-Format', 'json', '-DataFile', $script:detectFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 6' {
+      $script:run.ExitCode | Should -Be 6
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is true and command is detectInstalled' {
+      $script:json.ok      | Should -Be $true
+      $script:json.command | Should -Be 'detectInstalled'
+    }
+
+    It 'JSON result.buildSystem is MSBuild' {
+      $script:json.result.buildSystem | Should -Be 'MSBuild'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -DetectInstalled without -Platform' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-DetectInstalled', '-BuildSystem', 'DCC', '-DataFile', $script:detectFixturePath)
+    }
+
+    It 'exits with code 1 (PowerShell parameter binding failure)' {
+      $script:run.ExitCode | Should -Be 1
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits stderr' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -DetectInstalled without -BuildSystem' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-DetectInstalled', '-Platform', 'Win32', '-DataFile', $script:detectFixturePath)
+    }
+
+    It 'exits with code 1 (PowerShell parameter binding failure)' {
+      $script:run.ExitCode | Should -Be 1
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits stderr' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
     }
 
   }
