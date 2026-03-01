@@ -18,10 +18,11 @@
   (git submodule update --init).
 
   Context 1 - No action switches + valid -DataFile:
-    Default behavior is Version.  Validates exit 0 and all four stdout lines.
+    Default behavior is Version.  Validates exit 0, all four stdout lines, and clean stderr.
 
   Context 2 - -Version switch + valid -DataFile:
-    Explicit switch produces the same output as the default.
+    Explicit switch produces the same output as the default.  Validates all four stdout
+    lines and clean stderr, confirming the switch reaches the same dispatch branch.
 
   Context 3 - -DataFile path does not exist:
     Exit 3, no stdout, stderr contains "Data file not found".
@@ -83,6 +84,10 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
       $script:run.StdOut | Should -HaveCount 4
     }
 
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
   }
 
   Context 'Given -Version switch and a valid -DataFile' {
@@ -100,8 +105,24 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
       $script:run.StdOut[0] | Should -Be 'cd-ci-toolchain 0.1.0'
     }
 
+    It 'stdout includes a line with the dataVersion value' {
+      ($script:run.StdOut -match 'dataVersion\s+0\.1\.0') | Should -Not -BeNullOrEmpty
+    }
+
+    It 'stdout includes a line with the schemaVersion value' {
+      ($script:run.StdOut -match 'schemaVersion\s+1\.0\.0') | Should -Not -BeNullOrEmpty
+    }
+
+    It 'stdout includes a generated line' {
+      ($script:run.StdOut -match '^generated\s') | Should -Not -BeNullOrEmpty
+    }
+
     It 'stdout has exactly four lines' {
       $script:run.StdOut | Should -HaveCount 4
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
     }
 
   }

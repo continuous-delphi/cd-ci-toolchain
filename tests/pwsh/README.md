@@ -44,7 +44,7 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Throws with "Data file not found" for a missing path
 - Throws with "Failed to parse JSON" for malformed JSON
 
-### Write-VersionInfo (11 tests)
+### Write-VersionInfo (13 tests)
 
 - First output line exactly matches tool header format contract
 - Output includes a line with the dataVersion value
@@ -57,15 +57,17 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Output does not include a generated line when generated_utc_date is empty
 - Output has exactly three lines when generated_utc_date is whitespace-only
 - Output does not include a generated line when generated_utc_date is whitespace-only
+- Output has exactly three lines when generated_utc_date is null within a non-null meta
+- Output does not include a generated line when generated_utc_date is null within a non-null meta
 
-### cd-ci-toolchain.ps1 subprocess integration (18 tests)
+### cd-ci-toolchain.ps1 subprocess integration (23 tests)
 
 Invokes the script as a child process via `Invoke-ToolProcess`; validates exit
 codes, stdout, and stderr.  Covers the dispatch block that the dot-source guard
 skips during unit tests.
 
-- No action switches + valid `-DataFile`: exit 0, tool header, all four output lines
-- `-Version` switch + valid `-DataFile`: exit 0, tool header, four output lines
+- No action switches + valid `-DataFile`: exit 0, tool header, all four output lines, clean stderr
+- `-Version` switch + valid `-DataFile`: exit 0, tool header, all four output lines, clean stderr
 - `-DataFile` pointing to a missing path: exit 3, no stdout, stderr contains "Data file not found"
 - `-DataFile` pointing to malformed JSON: exit 3, no stdout, stderr contains "Failed to parse JSON"
 - No `-DataFile`, submodule initialized: exit 0, tool header, four output lines

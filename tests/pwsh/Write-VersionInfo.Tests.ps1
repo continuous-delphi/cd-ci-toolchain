@@ -25,6 +25,11 @@
     Verifies the generated line is absent and total line count is 3.
     (The implementation uses IsNullOrWhiteSpace, so '   ' must be suppressed
     the same way as '' and $null.)
+
+  Context 5 - Data object with a null generated_utc_date within a non-null meta:
+    Verifies the generated line is absent and total line count is 3.
+    (meta is non-null, so the first guard passes; generated_utc_date is null,
+    so the second guard fails and $generated stays null.)
 #>
 
 # PESTER 5 SCOPING RULES apply here -- see Resolve-DefaultDataFilePath.Tests.ps1
@@ -124,6 +129,27 @@ Describe 'Write-VersionInfo' {
         schemaVersion = '1.0.0'
         dataVersion   = '0.1.0'
         meta          = [pscustomobject]@{ generated_utc_date = '   ' }
+      }
+      $script:output = Write-VersionInfo -ToolVersion '0.1.0' -Data $script:data
+    }
+
+    It 'output has exactly three lines' {
+      $script:output | Should -HaveCount 3
+    }
+
+    It 'output does not include a generated line' {
+      ($script:output -match '^generated\s') | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given a data object with a null generated_utc_date within a non-null meta' {
+
+    BeforeAll {
+      $script:data = [pscustomobject]@{
+        schemaVersion = '1.0.0'
+        dataVersion   = '0.1.0'
+        meta          = [pscustomobject]@{ generated_utc_date = $null }
       }
       $script:output = Write-VersionInfo -ToolVersion '0.1.0' -Data $script:data
     }
