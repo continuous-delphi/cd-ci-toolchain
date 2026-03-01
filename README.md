@@ -122,6 +122,12 @@ output formats, and any functionality differences between implementations.
 
 Exit codes will match across implementations for equivalent commands.
 
+**PowerShell implementation note:** the PowerShell binder runs before the
+script body, so parameter binding failures (missing mandatory parameter,
+conflicting parameter set) also produce exit 1.  They are distinguishable
+from script-body errors only by the stderr message.  Exit 2 is reserved for
+invalid-argument conditions detected inside the script body.
+
 ### Machine output contract
 
 When JSON output is requested (`-Format json`), both implementations emit a stable JSON

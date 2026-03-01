@@ -99,6 +99,10 @@ skips during unit tests.
 - `-Resolve` without `-Name`: exit 1 (PowerShell parameter binding failure), no stdout, stderr references mandatory Name parameter
 - Multiple action switches (`-Version -Resolve`): exit 1 (PowerShell parameter binding failure), no stdout, stderr references parameter set resolution failure
 
+The error text for the two cases above is produced by PowerShell's parameter
+binder, not by the script.  The exact phrasing is version-dependent; the tests
+match stable substrings ("Name" and "parameter set") rather than full strings.
+
 ---
 
 ## Standards for new PowerShell test files
