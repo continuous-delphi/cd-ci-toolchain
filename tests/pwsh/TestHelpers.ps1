@@ -5,15 +5,17 @@
 #   . "$PSScriptRoot/TestHelpers.ps1"
 #
 # Provides (discovery scope -- usable at top level of test files):
-#   $ScriptUnderTest  - absolute path to cd-ci-toolchain.ps1
-#   $FixturesDir      - absolute path to tests/pwsh/fixtures/
-#   $MinFixturePath   - absolute path to the minimal valid fixture JSON
+#   $ScriptUnderTest    - absolute path to cd-ci-toolchain.ps1
+#   $FixturesDir        - absolute path to tests/pwsh/fixtures/
+#   $MinFixturePath     - absolute path to the minimal valid fixture JSON
+#   $ResolveFixturePath - absolute path to the resolve fixture JSON
 #
 # Provides (run scope -- usable inside BeforeAll / It blocks):
-#   Get-ScriptUnderTestPath  - returns absolute path to cd-ci-toolchain.ps1
-#   Get-MinFixturePath       - returns absolute path to the minimal fixture JSON
-#   Invoke-ToolProcess       - runs cd-ci-toolchain.ps1 as a child process and
-#                              returns [pscustomobject]@{ ExitCode; StdOut; StdErr }
+#   Get-ScriptUnderTestPath    - returns absolute path to cd-ci-toolchain.ps1
+#   Get-MinFixturePath         - returns absolute path to the minimal fixture JSON
+#   Get-ResolveFixturePath     - returns absolute path to the resolve fixture JSON
+#   Invoke-ToolProcess         - runs cd-ci-toolchain.ps1 as a child process and
+#                                returns [pscustomobject]@{ ExitCode; StdOut; StdErr }
 #
 # PESTER 5 SCOPING NOTE:
 #   Pester 5 isolates the run phase from the discovery phase entirely.
@@ -34,9 +36,10 @@
 #   That dot-source must happen in the test file's own BeforeAll so that
 #   the loaded functions land in the correct scope for It blocks.
 
-$here           = $PSScriptRoot
-$FixturesDir    = Join-Path $here 'fixtures'
-$MinFixturePath = Join-Path $FixturesDir 'delphi-compiler-versions.min.json'
+$here               = $PSScriptRoot
+$FixturesDir        = Join-Path $here 'fixtures'
+$MinFixturePath     = Join-Path $FixturesDir 'delphi-compiler-versions.min.json'
+$ResolveFixturePath = Join-Path $FixturesDir 'delphi-compiler-versions.resolve.json'
 
 $ScriptUnderTest = Join-Path $here '..' '..' 'source' 'pwsh' 'cd-ci-toolchain.ps1'
 $ScriptUnderTest = [System.IO.Path]::GetFullPath($ScriptUnderTest)
@@ -48,6 +51,11 @@ function Get-ScriptUnderTestPath {
 
 function Get-MinFixturePath {
   $path = Join-Path $PSScriptRoot 'fixtures' 'delphi-compiler-versions.min.json'
+  return [System.IO.Path]::GetFullPath($path)
+}
+
+function Get-ResolveFixturePath {
+  $path = Join-Path $PSScriptRoot 'fixtures' 'delphi-compiler-versions.resolve.json'
   return [System.IO.Path]::GetFullPath($path)
 }
 

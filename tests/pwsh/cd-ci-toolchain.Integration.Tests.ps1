@@ -33,14 +33,33 @@
   Context 5 - No -DataFile, submodule present:
     Exercises the Resolve-DefaultDataFilePath branch of the dispatch block
     end-to-end.  Exit 0, tool header present.
+
+  Contexts 6-10 cover the -Resolve dispatch branch.  All supply -DataFile
+  explicitly using the resolve fixture (delphi-compiler-versions.resolve.json).
+
+  Context 6 - -Resolve -Name VER150 (resolve by canonical VER):
+    Exit 0, ver line present, product_name line present, clean stderr.
+
+  Context 7 - -Resolve -Name D7 (resolve by short alias):
+    Exit 0, ver line shows VER150.
+
+  Context 8 - -Resolve -Name ver150 (case-insensitive):
+    Exit 0, ver line shows VER150.
+
+  Context 9 - -Resolve -Name for an unknown alias:
+    Exit 4, no stdout, stderr contains "Alias not found".
+
+  Context 10 - -Resolve without -Name:
+    Exit 2, no stdout, stderr contains "-Resolve requires -Name".
 #>
 
 Describe 'cd-ci-toolchain.ps1 (subprocess)' {
 
   BeforeAll {
     . "$PSScriptRoot/TestHelpers.ps1"
-    $script:scriptPath  = Get-ScriptUnderTestPath
-    $script:fixturePath = Get-MinFixturePath
+    $script:scriptPath         = Get-ScriptUnderTestPath
+    $script:fixturePath        = Get-MinFixturePath
+    $script:resolveFixturePath = Get-ResolveFixturePath
 
     $script:badJsonPath = Join-Path ([System.IO.Path]::GetTempPath()) 'cd-ci-toolchain-integration-bad.json'
     Set-Content -LiteralPath $script:badJsonPath -Value '{ bad json' -Encoding UTF8NoBOM
@@ -189,6 +208,117 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
 
     It 'stdout has exactly four lines' {
       $script:run.StdOut | Should -HaveCount 4
+    }
+
+  }
+
+  Context 'Given -Resolve -Name VER150 and a valid -DataFile' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Resolve', '-Name', 'VER150', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 0' {
+      $script:run.ExitCode | Should -Be 0
+    }
+
+    It 'stdout includes a ver line with the canonical VER value' {
+      ($script:run.StdOut -match 'ver\s+VER150') | Should -Not -BeNullOrEmpty
+    }
+
+    It 'stdout includes a product_name line' {
+      ($script:run.StdOut -match 'product_name\s+Delphi 7') | Should -Not -BeNullOrEmpty
+    }
+
+    It 'stdout includes a compilerVersion line' {
+      ($script:run.StdOut -match 'compilerVersion\s+15\.0') | Should -Not -BeNullOrEmpty
+    }
+
+    It 'stdout includes an aliases line' {
+      ($script:run.StdOut -match 'aliases\s+') | Should -Not -BeNullOrEmpty
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Resolve -Name D7 (short alias) and a valid -DataFile' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Resolve', '-Name', 'D7', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 0' {
+      $script:run.ExitCode | Should -Be 0
+    }
+
+    It 'ver line resolves to the canonical VER150' {
+      ($script:run.StdOut -match 'ver\s+VER150') | Should -Not -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Resolve -Name ver150 (lower-case input) and a valid -DataFile' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Resolve', '-Name', 'ver150', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 0' {
+      $script:run.ExitCode | Should -Be 0
+    }
+
+    It 'ver line resolves to the canonical VER150' {
+      ($script:run.StdOut -match 'ver\s+VER150') | Should -Not -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Resolve -Name for an alias not in the dataset' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Resolve', '-Name', 'DelphiX', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 4' {
+      $script:run.ExitCode | Should -Be 4
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits at least one stderr line containing "Alias not found"' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
+      ($script:run.StdErr -join "`n") | Should -Match 'Alias not found'
+    }
+
+  }
+
+  Context 'Given -Resolve without -Name' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Resolve', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 2' {
+      $script:run.ExitCode | Should -Be 2
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits at least one stderr line containing "-Resolve requires -Name"' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
+      ($script:run.StdErr -join "`n") | Should -Match '-Resolve requires -Name'
     }
 
   }

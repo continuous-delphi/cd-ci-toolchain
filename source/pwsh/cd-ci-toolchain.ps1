@@ -10,17 +10,27 @@ ASCII-only.
 USAGE
   pwsh ./source/cd-ci-toolchain.ps1
   pwsh ./source/cd-ci-toolchain.ps1 -Version
+  pwsh ./source/cd-ci-toolchain.ps1 -Resolve -Name <alias>
   pwsh ./source/cd-ci-toolchain.ps1 -DataFile <path>
 
 NOTES
   Default behavior is equivalent to -Version.
   This is intentional: future action switches will short-circuit -Version output.
+
+  -Resolve looks up an alias or VER### string in the dataset (case-insensitive)
+  and prints the canonical entry fields.  Exit 4 when the alias is not found.
 #>
 
 [CmdletBinding()]
 param(
   [Parameter(Mandatory=$false)]
   [switch]$Version,
+
+  [Parameter(Mandatory=$false)]
+  [switch]$Resolve,
+
+  [Parameter(Mandatory=$false)]
+  [string]$Name,
 
   [Parameter(Mandatory=$false)]
   [string]$DataFile
@@ -87,6 +97,43 @@ function Write-VersionInfo {
   }
 }
 
+function Resolve-VersionEntry {
+  param(
+    [string]$Name,
+    [psobject]$Data
+  )
+
+  foreach ($entry in $Data.versions) {
+    foreach ($alias in $entry.aliases) {
+      if ([string]::Equals($alias, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $entry
+      }
+    }
+  }
+  return $null
+}
+
+function Write-ResolveOutput {
+  param([psobject]$Entry)
+
+  # Label column is 22 chars wide to accommodate 'registry_key_relpath' (20 chars).
+  Write-Output ("ver                   {0}" -f $Entry.ver)
+  Write-Output ("product_name          {0}" -f $Entry.product_name)
+  Write-Output ("compilerVersion       {0}" -f $Entry.compilerVersion)
+  if (-not [string]::IsNullOrWhiteSpace($Entry.package_version)) {
+    Write-Output ("package_version       {0}" -f $Entry.package_version)
+  }
+  if (-not [string]::IsNullOrWhiteSpace($Entry.bds_reg_version)) {
+    Write-Output ("bds_reg_version       {0}" -f $Entry.bds_reg_version)
+  }
+  if (-not [string]::IsNullOrWhiteSpace($Entry.registry_key_relpath)) {
+    Write-Output ("registry_key_relpath  {0}" -f $Entry.registry_key_relpath)
+  }
+  if ($Entry.aliases -and $Entry.aliases.Count -gt 0) {
+    Write-Output ("aliases               {0}" -f ($Entry.aliases -join ', '))
+  }
+}
+
 # Guard: skip top-level execution when the script is dot-sourced for testing.
 # Pester dot-sources the file to import functions; $MyInvocation.InvocationName
 # is '.' in that case. Direct execution always sets it to the script path.
@@ -101,7 +148,7 @@ try {
   # Default behavior: if no action switches specified, treat as -Version.
   # This is intentional: future action switches will short-circuit when present.
   $doVersion = $Version
-  if (-not $doVersion) { $doVersion = $true }
+  if (-not $doVersion -and -not $Resolve) { $doVersion = $true }
 
   if ([string]::IsNullOrWhiteSpace($DataFile)) {
     $DataFile = Resolve-DefaultDataFilePath -ScriptPath $scriptPath
@@ -124,7 +171,20 @@ try {
     exit 0
   }
 
-  # Future switches will go here.
+  if ($Resolve) {
+    if ([string]::IsNullOrWhiteSpace($Name)) {
+      Write-Error '-Resolve requires -Name <alias>' -ErrorAction Continue
+      exit 2
+    }
+    $entry = Resolve-VersionEntry -Name $Name -Data $data
+    if ($null -eq $entry) {
+      Write-Error "Alias not found: $Name" -ErrorAction Continue
+      exit 4
+    }
+    Write-ResolveOutput -Entry $entry
+    exit 0
+  }
+
   exit 0
 } catch {
   # Print a single-line error for CI log readability.

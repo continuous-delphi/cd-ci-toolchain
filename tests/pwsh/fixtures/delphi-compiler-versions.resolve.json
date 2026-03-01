@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "dataVersion": "0.1.0",
+  "meta": {
+    "generated_utc_date": "2026-01-01"
+  },
+  "versions": [
+    {
+      "ver": "VER150",
+      "compilerVersion": "15.0",
+      "product_name": "Delphi 7",
+      "package_version": "70",
+      "bds_reg_version": null,
+      "registry_key_relpath": "\\Software\\Borland\\Delphi\\7.0",
+      "aliases": [
+        "VER150",
+        "Delphi7",
+        "D7"
+      ],
+      "notes": []
+    },
+    {
+      "ver": "VER370",
+      "compilerVersion": "37.0",
+      "product_name": "Delphi 13 Florence",
+      "package_version": "370",
+      "bds_reg_version": "37.0",
+      "registry_key_relpath": "\\Software\\Embarcadero\\BDS\\37.0",
+      "aliases": [
+        "VER370",
+        "Delphi13",
+        "Delphi 13 Florence",
+        "D13"
+      ],
+      "notes": []
+    }
+  ]
+}

@@ -60,7 +60,27 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Output has exactly three lines when generated_utc_date is null within a non-null meta
 - Output does not include a generated line when generated_utc_date is null within a non-null meta
 
-### cd-ci-toolchain.ps1 subprocess integration (23 tests)
+### Resolve-VersionEntry (13 tests)
+
+- Returns the matching entry for the canonical VER string
+- Returns the matching entry for a short alias (e.g., D7)
+- Returns the matching entry for an alias that contains a space
+- Resolves lower-case VER string case-insensitively
+- Resolves lower-case short alias case-insensitively
+- Resolves upper-case short alias case-insensitively
+- Returns null for an unknown alias
+- Returns null for an empty string
+- Returns the matching entry for a VER string in the second dataset entry
+
+### Write-ResolveOutput (11 tests)
+
+- Output includes ver, product_name, compilerVersion, package_version, bds_reg_version, registry_key_relpath, and aliases lines when all fields are populated
+- Output has exactly seven lines when all optional fields are populated
+- Output has exactly six lines when bds_reg_version is null
+- Output does not include a bds_reg_version line when it is null
+- Aliases line contains all aliases as a comma-separated list
+
+### cd-ci-toolchain.ps1 subprocess integration (39 tests)
 
 Invokes the script as a child process via `Invoke-ToolProcess`; validates exit
 codes, stdout, and stderr.  Covers the dispatch block that the dot-source guard
@@ -72,6 +92,11 @@ skips during unit tests.
 - `-DataFile` pointing to malformed JSON: exit 3, no stdout, stderr contains "Failed to parse JSON"
 - No `-DataFile`, submodule initialized: exit 0, tool header, four output lines
   *(requires submodule -- see [Submodule initialization](#submodule-initialization))*
+- `-Resolve -Name VER150`: exit 0, ver/product_name/compilerVersion/aliases lines, clean stderr
+- `-Resolve -Name D7` (short alias): exit 0, ver line shows VER150
+- `-Resolve -Name ver150` (lower-case): exit 0, ver line shows VER150
+- `-Resolve -Name` for an unknown alias: exit 4, no stdout, stderr contains "Alias not found"
+- `-Resolve` without `-Name`: exit 2, no stdout, stderr contains "-Resolve requires -Name"
 
 ---
 
