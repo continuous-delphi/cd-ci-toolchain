@@ -19,6 +19,20 @@ contract:
 Neither implementation is primary. They serve overlapping but distinct audiences and are both
 first-class deliverables.
 
+
+## TLDR;
+
+Curently, these work.  More options being built
+
+```powershell
+pwsh cd-ci-toolchain.ps1
+pwsh cd-ci-toolchain.ps1 -Version
+pwsh cd-ci-toolchain.ps1 -Resolve D7
+pwsh cd-ci-toolchain.ps1 -Resolve -Name D7
+pwsh cd-ci-toolchain.ps1 -Resolve "Delphi 11"
+pwsh cd-ci-toolchain.ps1 -Resolve D7 -Format json
+```
+
 ## Philosophy
 
 `Continuous Delphi` meets Delphi developers where they are.

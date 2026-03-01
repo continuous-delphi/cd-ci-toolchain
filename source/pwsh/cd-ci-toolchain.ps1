@@ -86,6 +86,16 @@ function Import-JsonData {
   }
 }
 
+
+function Write-JsonOutput {
+  param(
+    [Parameter(Mandatory=$true)]
+    [object]$Object
+  )
+  # Single write to stdout; stable for CI.
+  Write-Output ($Object | ConvertTo-Json -Depth 10 -Compress)
+}
+
 function Write-JsonError {
   param(
     [string]$ToolVersion,
@@ -93,12 +103,12 @@ function Write-JsonError {
     [int]$Code,
     [string]$Message
   )
-  Write-Output ([pscustomobject]@{
+  Write-JsonOutput ([pscustomobject]@{
     ok      = $false
     command = $Command
     tool    = [pscustomobject]@{ name = 'cd-ci-toolchain'; impl = 'pwsh'; version = $ToolVersion }
     error   = [pscustomobject]@{ code = $Code; message = $Message }
-  } | ConvertTo-Json -Depth 5)
+  } )
 }
 
 function Write-VersionInfo {
@@ -118,7 +128,7 @@ function Write-VersionInfo {
   }
 
   if ($Format -eq 'json') {
-    Write-Output ([pscustomobject]@{
+    Write-JsonOutput ([pscustomobject]@{
       ok      = $true
       command = 'version'
       tool    = [pscustomobject]@{ name = 'cd-ci-toolchain'; impl = 'pwsh'; version = $ToolVersion }
@@ -127,7 +137,7 @@ function Write-VersionInfo {
         dataVersion        = $dataVersion
         generated_utc_date = $generated
       }
-    } | ConvertTo-Json -Depth 5)
+    } )
     return
   }
 
@@ -146,9 +156,17 @@ function Resolve-VersionEntry {
   )
 
   foreach ($entry in $Data.versions) {
-    foreach ($alias in $entry.aliases) {
-      if ([string]::Equals($alias, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
-        return $entry
+    if ($null -ne $entry.aliases) {
+      foreach ($alias in $entry.aliases) {
+        # First: match canonical VER### directly (in case not listed as an alias)
+        if ($null -ne $entry.ver -and
+          [string]::Equals($entry.ver, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+          return $entry
+        }
+        # Then: match aliases
+        if ([string]::Equals($alias, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+          return $entry
+        }
       }
     }
   }
@@ -163,7 +181,7 @@ function Write-ResolveOutput {
   )
 
   if ($Format -eq 'json') {
-    Write-Output ([pscustomobject]@{
+    Write-JsonOutput ([pscustomobject]@{
       ok      = $true
       command = 'resolve'
       tool    = [pscustomobject]@{ name = 'cd-ci-toolchain'; impl = 'pwsh'; version = $ToolVersion }
@@ -176,7 +194,7 @@ function Write-ResolveOutput {
         registry_key_relpath = $Entry.registry_key_relpath
         aliases              = $Entry.aliases
       }
-    } | ConvertTo-Json -Depth 5)
+    } )
     return
   }
 
