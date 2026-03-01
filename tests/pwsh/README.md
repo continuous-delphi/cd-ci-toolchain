@@ -39,7 +39,7 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 
 - Returns parsed object with correct schemaVersion
 - Returns parsed object with correct dataVersion
-- Returns parsed object with correct meta.generated_utc_date
+- Returns parsed object with correct meta.generatedUtcDate
 - Returns parsed object with empty compilers list
 - Throws with "Data file not found" for a missing path
 - Throws with "Failed to parse JSON" for malformed JSON
@@ -49,51 +49,55 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - First output line exactly matches tool header format contract
 - Output includes a line with the dataVersion value
 - Output includes a line with the schemaVersion value
-- Output includes a generated line when meta.generated_utc_date is set
+- Output includes a generated line when meta.generatedUtcDate is set
 - Output has exactly four lines when all fields populated
 - Output has exactly three lines when meta is null
 - Output does not include a generated line when meta is null
-- Output has exactly three lines when generated_utc_date is empty
-- Output does not include a generated line when generated_utc_date is empty
-- Output has exactly three lines when generated_utc_date is whitespace-only
-- Output does not include a generated line when generated_utc_date is whitespace-only
-- Output has exactly three lines when generated_utc_date is null within a non-null meta
-- Output does not include a generated line when generated_utc_date is null within a non-null meta
+- Output has exactly three lines when generatedUtcDate is empty
+- Output does not include a generated line when generatedUtcDate is empty
+- Output has exactly three lines when generatedUtcDate is whitespace-only
+- Output does not include a generated line when generatedUtcDate is whitespace-only
+- Output has exactly three lines when generatedUtcDate is null within a non-null meta
+- Output does not include a generated line when generatedUtcDate is null within a non-null meta
 - `-Format json`: output is a single item that parses as valid JSON
 - `-Format json`: ok is true
 - `-Format json`: command is "version"
 - `-Format json`: result.schemaVersion matches the dataset value
 - `-Format json`: result.dataVersion matches the dataset value
-- `-Format json`: result.generated_utc_date matches the dataset value
+- `-Format json`: result.generatedUtcDate matches the dataset value
 - `-Format json` with null meta: output parses as valid JSON
-- `-Format json` with null meta: result.generated_utc_date is null
+- `-Format json` with null meta: result.generatedUtcDate is null
 
-### Resolve-VersionEntry (13 tests)
+### Resolve-VersionEntry (16 tests)
 
-- Returns the matching entry for the canonical VER string
+Lookup priority per entry: `verDefine` (short-circuits), then `productName`,
+then `aliases` array.  All comparisons are case-insensitive.
+
+- Returns the matching entry for the canonical verDefine string
 - Returns the matching entry for a short alias (e.g., D7)
+- Returns the matching entry by productName (e.g., "Delphi 7")
+- productName match is case-insensitive
 - Returns the matching entry for an alias that contains a space
-- Resolves lower-case VER string case-insensitively
+- Resolves lower-case verDefine string case-insensitively
 - Resolves lower-case short alias case-insensitively
 - Resolves upper-case short alias case-insensitively
 - Returns null for an unknown alias
 - Returns null for an empty string
-- Returns the matching entry for a VER string in the second dataset entry
+- Returns the matching entry for a verDefine string in the second dataset entry
 
-### Write-ResolveOutput (19 tests)
+### Write-ResolveOutput (16 tests)
 
-- Output includes ver, product_name, compilerVersion, package_version, bds_reg_version, registry_key_relpath, and aliases lines when all fields are populated
-- Output has exactly seven lines when all optional fields are populated
-- Output has exactly six lines when bds_reg_version is null
-- Output does not include a bds_reg_version line when it is null
+- Output includes verDefine, productName, compilerVersion, packageVersion, regKeyRelativePath, and aliases lines when all fields are populated
+- Output has exactly six lines when all fields are populated
+- Output has exactly six lines for a standard entry (VER150)
 - Aliases line contains all aliases as a comma-separated list
 - `-Format json`: output is a single item that parses as valid JSON
 - `-Format json`: ok is true
 - `-Format json`: command is "resolve"
-- `-Format json`: result.ver matches the entry value
-- `-Format json`: result.bds_reg_version matches the entry value when present
+- `-Format json`: result.verDefine matches the entry value
+- `-Format json`: result.regKeyRelativePath matches the entry value
 - `-Format json`: result.aliases contains all aliases
-- `-Format json` with null bds_reg_version: result.bds_reg_version is null rather than absent
+- `-Format json`: result does not contain a bds_reg_version property
 
 ### cd-ci-toolchain.ps1 subprocess integration (77 tests)
 
@@ -107,16 +111,16 @@ skips during unit tests.
 - `-DataFile` pointing to malformed JSON: exit 3, no stdout, stderr contains "Failed to parse JSON"
 - No `-DataFile`, submodule initialized: exit 0, tool header, four output lines
   *(requires submodule -- see [Submodule initialization](#submodule-initialization))*
-- `-Resolve -Name VER150`: exit 0, ver/product_name/compilerVersion/aliases lines, clean stderr
-- `-Resolve -Name D7` (short alias): exit 0, ver line shows VER150
-- `-Resolve D7` (positional `-Name`): exit 0, ver line shows VER150
-- `-Resolve -Name ver150` (lower-case): exit 0, ver line shows VER150
+- `-Resolve -Name VER150`: exit 0, verDefine/productName/compilerVersion/aliases lines, clean stderr
+- `-Resolve -Name D7` (short alias): exit 0, verDefine line shows VER150
+- `-Resolve D7` (positional `-Name`): exit 0, verDefine line shows VER150
+- `-Resolve -Name ver150` (lower-case): exit 0, verDefine line shows VER150
 - `-Resolve -Name` for an unknown alias: exit 4, no stdout, stderr contains "Alias not found"
 - `-Resolve` without `-Name`: exit 1 (PowerShell parameter binding failure), no stdout, stderr references mandatory Name parameter
 - Multiple action switches (`-Version -Resolve`): exit 1 (PowerShell parameter binding failure), no stdout, stderr references parameter set resolution failure
-- `-Resolve -Name VER370` (all fields): exit 0, exactly seven stdout lines, bds_reg_version line present, clean stderr
-- `-Version -Format json`: exit 0, stdout parses as JSON, ok=true/command=version, result contains schemaVersion/dataVersion/generated_utc_date, clean stderr
-- `-Resolve -Name VER150 -Format json`: exit 0, stdout parses as JSON, ok=true/command=resolve, result.ver=VER150, result.bds_reg_version=null, result.aliases contains D7, clean stderr
+- `-Resolve -Name VER370` (all fields): exit 0, exactly six stdout lines, clean stderr
+- `-Version -Format json`: exit 0, stdout parses as JSON, ok=true/command=version, result contains schemaVersion/dataVersion/generatedUtcDate, clean stderr
+- `-Resolve -Name VER150 -Format json`: exit 0, stdout parses as JSON, ok=true/command=resolve, result.verDefine=VER150, result.aliases contains D7, clean stderr
 - `-DataFile` missing path `-Format json`: exit 3, stdout parses as JSON error envelope, ok=false/error.code=3/"Data file not found" in message, clean stderr
 - `-Resolve` unknown alias `-Format json`: exit 4, stdout parses as JSON error envelope, ok=false/error.code=4/"Alias not found" in message, clean stderr
 - `-Format yaml` (invalid value): exit 1 (parameter binder rejects ValidateSet value), no stdout, stderr present

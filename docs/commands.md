@@ -45,7 +45,7 @@ Labels are left-padded to a fixed column width.
     schemaVersion   1.0.0
     generated       2026-01-01
 
-If `generated_utc_date` is null, empty, or whitespace in the dataset,
+If `generatedUtcDate` is null, empty, or whitespace in the dataset,
 the `generated` line is omitted.
 
 ### Output (json format)
@@ -61,11 +61,11 @@ the `generated` line is omitted.
       "result": {
         "schemaVersion": "1.0.0",
         "dataVersion": "0.1.0",
-        "generated_utc_date": "2026-01-01"
+        "generatedUtcDate": "2026-01-01"
       }
     }
 
-`generated_utc_date` is always present in JSON output; it is `null`
+`generatedUtcDate` is always present in JSON output; it is `null`
 when absent from the dataset.
 
 ------------------------------------------------------------------------
@@ -84,8 +84,10 @@ entry.
 after `-Resolve`) or explicitly via `-Name`.  Omitting it is a
 parameter binding error (exit code 1).
 
-Matching is case-insensitive.  Both VER### strings and short aliases
-(e.g. `D7`, `Delphi 11`) are accepted.
+Matching is case-insensitive.  The lookup checks each entry in order:
+`verDefine` (e.g. `VER150`), then `productName` (e.g. `Delphi 7`),
+then the `aliases` array (e.g. `D7`, `Delphi 11`).  The first match
+wins.
 
 ### Examples
 
@@ -96,17 +98,15 @@ Matching is case-insensitive.  Both VER### strings and short aliases
 
 ### Output (text format, default)
 
-Labels are left-padded to a 22-character column width.  Optional fields
+Labels are left-padded to a 20-character column width.  Optional fields
 that are null or empty in the dataset are omitted.
 
-    ver                   VER150
-    product_name          Delphi 7
-    compilerVersion       15.0
-    package_version       70
-    registry_key_relpath  \Software\Borland\Delphi\7.0
-    aliases               VER150, Delphi7, D7
-
-(`bds_reg_version` is omitted above because it is null for VER150.)
+    verDefine           VER150
+    productName         Delphi 7
+    compilerVersion     15.0
+    packageVersion      70
+    regKeyRelativePath  \Software\Borland\Delphi\7.0
+    aliases             VER150, Delphi7, D7
 
 ### Output (json format)
 
@@ -123,12 +123,11 @@ being omitted.
         "version": "0.1.0"
       },
       "result": {
-        "ver": "VER150",
-        "product_name": "Delphi 7",
+        "verDefine": "VER150",
+        "productName": "Delphi 7",
         "compilerVersion": "15.0",
-        "package_version": "70",
-        "bds_reg_version": null,
-        "registry_key_relpath": "\\Software\\Borland\\Delphi\\7.0",
+        "packageVersion": "70",
+        "regKeyRelativePath": "\\Software\\Borland\\Delphi\\7.0",
         "aliases": ["VER150", "Delphi7", "D7"]
       }
     }
@@ -236,5 +235,5 @@ JSON error envelope:
     of a single JSON object written to stdout.  No other text is
     written to stdout alongside it.
 -   Property names in JSON `result` match the dataset field names
-    exactly (e.g. `product_name`, `compilerVersion`,
-    `registry_key_relpath`).
+    exactly (e.g. `verDefine`, `productName`, `compilerVersion`,
+    `regKeyRelativePath`).

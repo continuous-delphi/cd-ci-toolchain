@@ -16,16 +16,19 @@
   Context 2 - Match by short alias:
     Verifies that a non-VER alias (D7) resolves to the correct entry.
 
-  Context 3 - Match by alias with embedded space:
+  Context 3 - Match by productName:
+    Verifies that a productName string resolves to the correct entry.
+
+  Context 4 - Match by alias with embedded space:
     Verifies that "Delphi 13 Florence" resolves to the VER370 entry.
 
-  Context 4 - Case-insensitive match:
+  Context 5 - Case-insensitive match:
     Verifies that lower-case input ("ver150", "d7") resolves correctly.
 
-  Context 5 - No match returns null:
+  Context 6 - No match returns null:
     Verifies that an unknown alias causes the function to return null.
 
-  Context 6 - Match against the second entry:
+  Context 7 - Match against the second entry:
     Verifies that the scan reaches entries beyond the first.
 #>
 
@@ -66,6 +69,25 @@ Describe 'Resolve-VersionEntry' {
 
     It 'returned entry has the correct verDefine' {
       $result = Resolve-VersionEntry -Name 'D7' -Data $script:data
+      $result.verDefine | Should -Be 'VER150'
+    }
+
+  }
+
+  Context 'Given the productName for the first entry' {
+
+    It 'returns the matching entry' {
+      $result = Resolve-VersionEntry -Name 'Delphi 7' -Data $script:data
+      $result | Should -Not -BeNull
+    }
+
+    It 'returned entry has the correct verDefine' {
+      $result = Resolve-VersionEntry -Name 'Delphi 7' -Data $script:data
+      $result.verDefine | Should -Be 'VER150'
+    }
+
+    It 'productName match is case-insensitive' {
+      $result = Resolve-VersionEntry -Name 'delphi 7' -Data $script:data
       $result.verDefine | Should -Be 'VER150'
     }
 

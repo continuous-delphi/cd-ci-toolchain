@@ -161,6 +161,11 @@ function Resolve-VersionEntry {
         [string]::Equals($entry.verDefine, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
       return $entry
     }
+    # Check productName -- not stored in aliases by design
+    if ($null -ne $entry.productName -and
+        [string]::Equals($entry.productName, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+      return $entry
+    }
     # Then scan aliases
     if ($null -ne $entry.aliases) {
       foreach ($alias in $entry.aliases) {

@@ -163,7 +163,7 @@ Success (`-Version`):
   "result": {
     "schemaVersion": "1.0.0",
     "dataVersion": "0.1.0",
-    "generated_utc_date": "YYYY-MM-DD"
+    "generatedUtcDate": "YYYY-MM-DD"
   }
 }
 ```
@@ -180,12 +180,11 @@ Success (`-Resolve`):
     "version": "X.Y.Z"
   },
   "result": {
-    "ver": "VER150",
-    "product_name": "Delphi 7",
+    "verDefine": "VER150",
+    "productName": "Delphi 7",
     "compilerVersion": "15.0",
-    "package_version": "70",
-    "bds_reg_version": null,
-    "registry_key_relpath": "\\Software\\Borland\\Delphi\\7.0",
+    "packageVersion": "70",
+    "regKeyRelativePath": "\\Software\\Borland\\Delphi\\7.0",
     "aliases": ["VER150", "Delphi7", "D7"]
   }
 }
