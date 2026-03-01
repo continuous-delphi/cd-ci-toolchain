@@ -96,8 +96,8 @@ skips during unit tests.
 - `-Resolve -Name D7` (short alias): exit 0, ver line shows VER150
 - `-Resolve -Name ver150` (lower-case): exit 0, ver line shows VER150
 - `-Resolve -Name` for an unknown alias: exit 4, no stdout, stderr contains "Alias not found"
-- `-Resolve` without `-Name`: exit 2, no stdout, stderr contains "-Resolve requires -Name"
-- Multiple action switches (`-Version -Resolve`): exit 2, no stdout, stderr contains "Specify only one action switch"
+- `-Resolve` without `-Name`: exit 1 (PowerShell parameter binding failure), no stdout, stderr references mandatory Name parameter
+- Multiple action switches (`-Version -Resolve`): exit 1 (PowerShell parameter binding failure), no stdout, stderr references parameter set resolution failure
 
 ---
 

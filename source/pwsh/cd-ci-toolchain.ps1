@@ -21,18 +21,18 @@ NOTES
   and prints the canonical entry fields.  Exit 4 when the alias is not found.
 #>
 
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName='Version')]
 param(
-  [Parameter(Mandatory=$false)]
+  [Parameter(ParameterSetName='Version')]
   [switch]$Version,
 
-  [Parameter(Mandatory=$false)]
+  [Parameter(ParameterSetName='Resolve', Mandatory=$true)]
   [switch]$Resolve,
 
-  [Parameter(Mandatory=$false)]
+  [Parameter(ParameterSetName='Resolve', Mandatory=$true)]
   [string]$Name,
 
-  [Parameter(Mandatory=$false)]
+  [Parameter()]
   [string]$DataFile
 )
 
@@ -145,18 +145,8 @@ try {
     throw "Cannot resolve script path. Run as a file, not dot-sourced."
   }
 
-  # Enforce mutual exclusion across all action switches.
-  # Add new action switches to this array as they are introduced.
-  # .Where() on an array always returns a countable collection; pipeline
-  # Where-Object returns $null when nothing matches, which StrictMode rejects.
-  $activeActions = @($Version, $Resolve).Where({ $_ })
-  if ($activeActions.Count -gt 1) {
-    Write-Error 'Specify only one action switch.' -ErrorAction Continue
-    exit 2
-  }
-
   # Default behavior: if no action switches specified, treat as -Version.
-  # This is intentional: future action switches will short-circuit when present.
+  # Mutual exclusion and mandatory -Name are enforced by parameter sets.
   $doVersion = $Version
   if (-not $doVersion -and -not $Resolve) { $doVersion = $true }
 
@@ -182,10 +172,6 @@ try {
   }
 
   if ($Resolve) {
-    if ([string]::IsNullOrWhiteSpace($Name)) {
-      Write-Error '-Resolve requires -Name <alias>' -ErrorAction Continue
-      exit 2
-    }
     $entry = Resolve-VersionEntry -Name $Name -Data $data
     if ($null -eq $entry) {
       Write-Error "Alias not found: $Name" -ErrorAction Continue
