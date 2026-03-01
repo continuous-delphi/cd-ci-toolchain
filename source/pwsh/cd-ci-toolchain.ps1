@@ -29,7 +29,7 @@ param(
   [Parameter(ParameterSetName='Resolve', Mandatory=$true)]
   [switch]$Resolve,
 
-  [Parameter(ParameterSetName='Resolve', Mandatory=$true)]
+  [Parameter(ParameterSetName='Resolve', Mandatory=$true, Position=0)]
   [string]$Name,
 
   [Parameter()]

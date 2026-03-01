@@ -43,6 +43,9 @@
   Context 7 - -Resolve -Name D7 (resolve by short alias):
     Exit 0, ver line shows VER150.
 
+  Context 7b - -Resolve D7 (positional -Name):
+    Exit 0, ver line shows VER150.  Verifies Position=0 on -Name.
+
   Context 8 - -Resolve -Name ver150 (case-insensitive):
     Exit 0, ver line shows VER150.
 
@@ -255,6 +258,23 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
     BeforeAll {
       $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
                                        -Arguments @('-Resolve', '-Name', 'D7', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 0' {
+      $script:run.ExitCode | Should -Be 0
+    }
+
+    It 'ver line resolves to the canonical VER150' {
+      ($script:run.StdOut -match 'ver\s+VER150') | Should -Not -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Resolve D7 (positional -Name) and a valid -DataFile' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Resolve', 'D7', '-DataFile', $script:resolveFixturePath)
     }
 
     It 'exits with code 0' {
