@@ -80,7 +80,7 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Output does not include a bds_reg_version line when it is null
 - Aliases line contains all aliases as a comma-separated list
 
-### cd-ci-toolchain.ps1 subprocess integration (39 tests)
+### cd-ci-toolchain.ps1 subprocess integration (42 tests)
 
 Invokes the script as a child process via `Invoke-ToolProcess`; validates exit
 codes, stdout, and stderr.  Covers the dispatch block that the dot-source guard
@@ -97,6 +97,7 @@ skips during unit tests.
 - `-Resolve -Name ver150` (lower-case): exit 0, ver line shows VER150
 - `-Resolve -Name` for an unknown alias: exit 4, no stdout, stderr contains "Alias not found"
 - `-Resolve` without `-Name`: exit 2, no stdout, stderr contains "-Resolve requires -Name"
+- Multiple action switches (`-Version -Resolve`): exit 2, no stdout, stderr contains "Specify only one action switch"
 
 ---
 

@@ -51,6 +51,9 @@
 
   Context 10 - -Resolve without -Name:
     Exit 2, no stdout, stderr contains "-Resolve requires -Name".
+
+  Context 11 - Multiple action switches (-Version -Resolve):
+    Exit 2, no stdout, stderr contains "Specify only one action switch".
 #>
 
 Describe 'cd-ci-toolchain.ps1 (subprocess)' {
@@ -319,6 +322,28 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
     It 'emits at least one stderr line containing "-Resolve requires -Name"' {
       $script:run.StdErr | Should -Not -BeNullOrEmpty
       ($script:run.StdErr -join "`n") | Should -Match '-Resolve requires -Name'
+    }
+
+  }
+
+  Context 'Given multiple action switches (-Version and -Resolve)' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Version', '-Resolve', '-DataFile', $script:fixturePath)
+    }
+
+    It 'exits with code 2' {
+      $script:run.ExitCode | Should -Be 2
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits at least one stderr line containing "Specify only one action switch"' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
+      ($script:run.StdErr -join "`n") | Should -Match 'Specify only one action switch'
     }
 
   }

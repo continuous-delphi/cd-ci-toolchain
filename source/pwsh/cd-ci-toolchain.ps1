@@ -145,6 +145,16 @@ try {
     throw "Cannot resolve script path. Run as a file, not dot-sourced."
   }
 
+  # Enforce mutual exclusion across all action switches.
+  # Add new action switches to this array as they are introduced.
+  # .Where() on an array always returns a countable collection; pipeline
+  # Where-Object returns $null when nothing matches, which StrictMode rejects.
+  $activeActions = @($Version, $Resolve).Where({ $_ })
+  if ($activeActions.Count -gt 1) {
+    Write-Error 'Specify only one action switch.' -ErrorAction Continue
+    exit 2
+  }
+
   # Default behavior: if no action switches specified, treat as -Version.
   # This is intentional: future action switches will short-circuit when present.
   $doVersion = $Version
