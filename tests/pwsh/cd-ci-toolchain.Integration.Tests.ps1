@@ -59,6 +59,34 @@
   Context 11 - Multiple action switches (-Version -Resolve):
     Exit 1 (PowerShell parameter binding rejects the invocation before the
     script body runs), no stdout, stderr references parameter set resolution.
+
+  Context 12 - -Resolve -Name VER370 (all fields in text mode):
+    All seven output lines present (ver, product_name, compilerVersion,
+    package_version, bds_reg_version, registry_key_relpath, aliases).
+    Fills the text-mode all-fields gap left by Contexts 6-8 which use VER150.
+
+  Context 13 - -Version -Format json and a valid -DataFile:
+    Exit 0, stdout is a single JSON envelope with ok=true, command='version',
+    and result containing schemaVersion, dataVersion, generated_utc_date.
+    Clean stderr.
+
+  Context 14 - -Resolve -Name VER150 -Format json and a valid -DataFile:
+    Exit 0, stdout is a single JSON envelope with ok=true, command='resolve',
+    result.ver=VER150, result.bds_reg_version=null (present as null, unlike
+    text mode which omits the line), and result.aliases containing 'D7'.
+    Clean stderr.
+
+  Context 15 - -DataFile pointing to a missing path -Format json:
+    Exit 3, stdout is a JSON error envelope (ok=false, error.code=3,
+    error.message contains 'Data file not found').  Clean stderr.
+
+  Context 16 - -Resolve for an unknown alias -Format json:
+    Exit 4, stdout is a JSON error envelope (ok=false, error.code=4,
+    error.message contains 'Alias not found').  Clean stderr.
+
+  Context 17 - -Format yaml (invalid ValidateSet value):
+    Exit 1 (PowerShell parameter binder rejects 'yaml' before the script body
+    runs).  No stdout.  Stderr present.
 #>
 
 Describe 'cd-ci-toolchain.ps1 (subprocess)' {
@@ -366,6 +394,199 @@ Describe 'cd-ci-toolchain.ps1 (subprocess)' {
     It 'emits stderr referencing parameter set resolution failure' {
       $script:run.StdErr | Should -Not -BeNullOrEmpty
       ($script:run.StdErr -join "`n") | Should -Match 'parameter set'
+    }
+
+  }
+
+  Context 'Given -Resolve -Name VER370 and a valid -DataFile (all fields)' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Resolve', '-Name', 'VER370', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 0' {
+      $script:run.ExitCode | Should -Be 0
+    }
+
+    It 'stdout has exactly seven lines' {
+      $script:run.StdOut | Should -HaveCount 7
+    }
+
+    It 'stdout includes a bds_reg_version line' {
+      ($script:run.StdOut -match 'bds_reg_version\s+37\.0') | Should -Not -BeNullOrEmpty
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Version -Format json and a valid -DataFile' {
+
+    BeforeAll {
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-Version', '-Format', 'json', '-DataFile', $script:fixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 0' {
+      $script:run.ExitCode | Should -Be 0
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is true and command is version' {
+      $script:json.ok      | Should -Be $true
+      $script:json.command | Should -Be 'version'
+    }
+
+    It 'JSON result.schemaVersion is present' {
+      ($script:run.StdOut -join "`n") | Should -Match 'schemaVersion'
+    }
+
+    It 'JSON result.dataVersion is present' {
+      ($script:run.StdOut -join "`n") | Should -Match 'dataVersion'
+    }
+
+    It 'JSON result.generated_utc_date is not null' {
+      $script:json.result.generated_utc_date | Should -Not -BeNullOrEmpty
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Resolve -Name VER150 -Format json and a valid -DataFile' {
+
+    BeforeAll {
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-Resolve', '-Name', 'VER150', '-Format', 'json', '-DataFile', $script:resolveFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 0' {
+      $script:run.ExitCode | Should -Be 0
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is true and command is resolve' {
+      $script:json.ok      | Should -Be $true
+      $script:json.command | Should -Be 'resolve'
+    }
+
+    It 'JSON result.ver is VER150' {
+      $script:json.result.ver | Should -Be 'VER150'
+    }
+
+    It 'JSON result.bds_reg_version is null' {
+      $script:json.result.bds_reg_version | Should -Be $null
+    }
+
+    It 'JSON result.aliases contains D7' {
+      $script:json.result.aliases | Should -Contain 'D7'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -DataFile pointing to a missing path -Format json' {
+
+    BeforeAll {
+      $missingPath = Join-Path ([System.IO.Path]::GetTempPath()) 'cd-ci-toolchain-integration-missing-json.json'
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-Format', 'json', '-DataFile', $missingPath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 3' {
+      $script:run.ExitCode | Should -Be 3
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is false' {
+      $script:json.ok | Should -Be $false
+    }
+
+    It 'JSON error.code is 3' {
+      $script:json.error.code | Should -Be 3
+    }
+
+    It 'JSON error.message contains "Data file not found"' {
+      $script:json.error.message | Should -Match 'Data file not found'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Resolve for an unknown alias -Format json' {
+
+    BeforeAll {
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-Resolve', '-Name', 'DelphiX', '-Format', 'json', '-DataFile', $script:resolveFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 4' {
+      $script:run.ExitCode | Should -Be 4
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is false' {
+      $script:json.ok | Should -Be $false
+    }
+
+    It 'JSON error.code is 4' {
+      $script:json.error.code | Should -Be 4
+    }
+
+    It 'JSON error.message contains "Alias not found"' {
+      $script:json.error.message | Should -Match 'Alias not found'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Format yaml (invalid ValidateSet value)' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Version', '-Format', 'yaml', '-DataFile', $script:fixturePath)
+    }
+
+    It 'exits with code 1 (PowerShell parameter binding failure)' {
+      $script:run.ExitCode | Should -Be 1
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits stderr' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
     }
 
   }

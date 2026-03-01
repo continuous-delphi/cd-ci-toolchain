@@ -44,7 +44,7 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Throws with "Data file not found" for a missing path
 - Throws with "Failed to parse JSON" for malformed JSON
 
-### Write-VersionInfo (13 tests)
+### Write-VersionInfo (22 tests)
 
 - First output line exactly matches tool header format contract
 - Output includes a line with the dataVersion value
@@ -59,6 +59,14 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Output does not include a generated line when generated_utc_date is whitespace-only
 - Output has exactly three lines when generated_utc_date is null within a non-null meta
 - Output does not include a generated line when generated_utc_date is null within a non-null meta
+- `-Format json`: output is a single item that parses as valid JSON
+- `-Format json`: ok is true
+- `-Format json`: command is "version"
+- `-Format json`: result.schemaVersion matches the dataset value
+- `-Format json`: result.dataVersion matches the dataset value
+- `-Format json`: result.generated_utc_date matches the dataset value
+- `-Format json` with null meta: output parses as valid JSON
+- `-Format json` with null meta: result.generated_utc_date is null
 
 ### Resolve-VersionEntry (13 tests)
 
@@ -72,15 +80,22 @@ Invoke-Pester ./tests/pwsh/Write-VersionInfo.Tests.ps1 -Output Detailed
 - Returns null for an empty string
 - Returns the matching entry for a VER string in the second dataset entry
 
-### Write-ResolveOutput (11 tests)
+### Write-ResolveOutput (19 tests)
 
 - Output includes ver, product_name, compilerVersion, package_version, bds_reg_version, registry_key_relpath, and aliases lines when all fields are populated
 - Output has exactly seven lines when all optional fields are populated
 - Output has exactly six lines when bds_reg_version is null
 - Output does not include a bds_reg_version line when it is null
 - Aliases line contains all aliases as a comma-separated list
+- `-Format json`: output is a single item that parses as valid JSON
+- `-Format json`: ok is true
+- `-Format json`: command is "resolve"
+- `-Format json`: result.ver matches the entry value
+- `-Format json`: result.bds_reg_version matches the entry value when present
+- `-Format json`: result.aliases contains all aliases
+- `-Format json` with null bds_reg_version: result.bds_reg_version is null rather than absent
 
-### cd-ci-toolchain.ps1 subprocess integration (44 tests)
+### cd-ci-toolchain.ps1 subprocess integration (77 tests)
 
 Invokes the script as a child process via `Invoke-ToolProcess`; validates exit
 codes, stdout, and stderr.  Covers the dispatch block that the dot-source guard
@@ -99,8 +114,14 @@ skips during unit tests.
 - `-Resolve -Name` for an unknown alias: exit 4, no stdout, stderr contains "Alias not found"
 - `-Resolve` without `-Name`: exit 1 (PowerShell parameter binding failure), no stdout, stderr references mandatory Name parameter
 - Multiple action switches (`-Version -Resolve`): exit 1 (PowerShell parameter binding failure), no stdout, stderr references parameter set resolution failure
+- `-Resolve -Name VER370` (all fields): exit 0, exactly seven stdout lines, bds_reg_version line present, clean stderr
+- `-Version -Format json`: exit 0, stdout parses as JSON, ok=true/command=version, result contains schemaVersion/dataVersion/generated_utc_date, clean stderr
+- `-Resolve -Name VER150 -Format json`: exit 0, stdout parses as JSON, ok=true/command=resolve, result.ver=VER150, result.bds_reg_version=null, result.aliases contains D7, clean stderr
+- `-DataFile` missing path `-Format json`: exit 3, stdout parses as JSON error envelope, ok=false/error.code=3/"Data file not found" in message, clean stderr
+- `-Resolve` unknown alias `-Format json`: exit 4, stdout parses as JSON error envelope, ok=false/error.code=4/"Alias not found" in message, clean stderr
+- `-Format yaml` (invalid value): exit 1 (parameter binder rejects ValidateSet value), no stdout, stderr present
 
-The error text for the two cases above is produced by PowerShell's parameter
+The error text for the binder-failure cases is produced by PowerShell's parameter
 binder, not by the script.  The exact phrasing is version-dependent; the tests
 match stable substrings ("Name" and "parameter set") rather than full strings.
 

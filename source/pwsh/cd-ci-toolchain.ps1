@@ -10,7 +10,10 @@ ASCII-only.
 USAGE
   pwsh ./source/cd-ci-toolchain.ps1
   pwsh ./source/cd-ci-toolchain.ps1 -Version
+  pwsh ./source/cd-ci-toolchain.ps1 -Version -Format json
   pwsh ./source/cd-ci-toolchain.ps1 -Resolve -Name <alias>
+  pwsh ./source/cd-ci-toolchain.ps1 -Resolve <alias>
+  pwsh ./source/cd-ci-toolchain.ps1 -Resolve -Name <alias> -Format json
   pwsh ./source/cd-ci-toolchain.ps1 -DataFile <path>
 
 NOTES
@@ -19,6 +22,11 @@ NOTES
 
   -Resolve looks up an alias or VER### string in the dataset (case-insensitive)
   and prints the canonical entry fields.  Exit 4 when the alias is not found.
+
+  -Format selects output format: text (default, human-readable) or json
+  (machine envelope with ok/command/tool/result structure).  Error envelopes
+  substitute result with error: { code, message }.  Unknown format values are
+  rejected by the parameter binder (ValidateSet).
 #>
 
 [CmdletBinding(DefaultParameterSetName='Version')]
@@ -33,7 +41,11 @@ param(
   [string]$Name,
 
   [Parameter()]
-  [string]$DataFile
+  [string]$DataFile,
+
+  [Parameter()]
+  [ValidateSet('text', 'json')]
+  [string]$Format = 'text'
 )
 
 Set-StrictMode -Version Latest
@@ -74,19 +86,49 @@ function Import-JsonData {
   }
 }
 
+function Write-JsonError {
+  param(
+    [string]$ToolVersion,
+    [string]$Command,
+    [int]$Code,
+    [string]$Message
+  )
+  Write-Output ([pscustomobject]@{
+    ok      = $false
+    command = $Command
+    tool    = [pscustomobject]@{ name = 'cd-ci-toolchain'; impl = 'pwsh'; version = $ToolVersion }
+    error   = [pscustomobject]@{ code = $Code; message = $Message }
+  } | ConvertTo-Json -Depth 5)
+}
+
 function Write-VersionInfo {
   param(
     [string]$ToolVersion,
-    [psobject]$Data
+    [psobject]$Data,
+    [string]$Format = 'text'
   )
 
   $schemaVersion = $Data.schemaVersion
-  $dataVersion = $Data.dataVersion
+  $dataVersion   = $Data.dataVersion
 
   # generated date lives under meta.generated_utc_date in our dataset
   $generated = $null
   if ($null -ne $Data.meta -and $null -ne $Data.meta.generated_utc_date) {
     $generated = $Data.meta.generated_utc_date
+  }
+
+  if ($Format -eq 'json') {
+    Write-Output ([pscustomobject]@{
+      ok      = $true
+      command = 'version'
+      tool    = [pscustomobject]@{ name = 'cd-ci-toolchain'; impl = 'pwsh'; version = $ToolVersion }
+      result  = [pscustomobject]@{
+        schemaVersion      = $schemaVersion
+        dataVersion        = $dataVersion
+        generated_utc_date = $generated
+      }
+    } | ConvertTo-Json -Depth 5)
+    return
   }
 
   Write-Output ("cd-ci-toolchain {0}" -f $ToolVersion)
@@ -114,7 +156,29 @@ function Resolve-VersionEntry {
 }
 
 function Write-ResolveOutput {
-  param([psobject]$Entry)
+  param(
+    [psobject]$Entry,
+    [string]$ToolVersion = '',
+    [string]$Format = 'text'
+  )
+
+  if ($Format -eq 'json') {
+    Write-Output ([pscustomobject]@{
+      ok      = $true
+      command = 'resolve'
+      tool    = [pscustomobject]@{ name = 'cd-ci-toolchain'; impl = 'pwsh'; version = $ToolVersion }
+      result  = [pscustomobject]@{
+        ver                  = $Entry.ver
+        product_name         = $Entry.product_name
+        compilerVersion      = $Entry.compilerVersion
+        package_version      = $Entry.package_version
+        bds_reg_version      = $Entry.bds_reg_version
+        registry_key_relpath = $Entry.registry_key_relpath
+        aliases              = $Entry.aliases
+      }
+    } | ConvertTo-Json -Depth 5)
+    return
+  }
 
   # Label column is 22 chars wide to accommodate 'registry_key_relpath' (20 chars).
   Write-Output ("ver                   {0}" -f $Entry.ver)
@@ -140,6 +204,7 @@ function Write-ResolveOutput {
 if ($MyInvocation.InvocationName -eq '.') { return }
 
 try {
+  $commandName = 'version'  # safe default for outer catch error reporting
   $scriptPath = $PSCommandPath
   if ([string]::IsNullOrWhiteSpace($scriptPath)) {
     throw "Cannot resolve script path. Run as a file, not dot-sourced."
@@ -149,6 +214,7 @@ try {
   # Mutual exclusion and mandatory -Name are enforced by parameter sets.
   $doVersion = $Version
   if (-not $doVersion -and -not $Resolve) { $doVersion = $true }
+  $commandName = if ($Resolve) { 'resolve' } else { 'version' }
 
   if ([string]::IsNullOrWhiteSpace($DataFile)) {
     $DataFile = Resolve-DefaultDataFilePath -ScriptPath $scriptPath
@@ -162,28 +228,39 @@ try {
   try {
     $data = Import-JsonData -Path $DataFile
   } catch {
-    Write-Error $_.Exception.Message -ErrorAction Continue
+    if ($Format -eq 'json') {
+      Write-JsonError -ToolVersion $ToolVersion -Command $commandName -Code 3 -Message $_.Exception.Message
+    } else {
+      Write-Error $_.Exception.Message -ErrorAction Continue
+    }
     exit 3
   }
 
   if ($doVersion) {
-    Write-VersionInfo -ToolVersion $ToolVersion -Data $data
+    Write-VersionInfo -ToolVersion $ToolVersion -Data $data -Format $Format
     exit 0
   }
 
   if ($Resolve) {
     $entry = Resolve-VersionEntry -Name $Name -Data $data
     if ($null -eq $entry) {
-      Write-Error "Alias not found: $Name" -ErrorAction Continue
+      if ($Format -eq 'json') {
+        Write-JsonError -ToolVersion $ToolVersion -Command 'resolve' -Code 4 -Message "Alias not found: $Name"
+      } else {
+        Write-Error "Alias not found: $Name" -ErrorAction Continue
+      }
       exit 4
     }
-    Write-ResolveOutput -Entry $entry
+    Write-ResolveOutput -Entry $entry -ToolVersion $ToolVersion -Format $Format
     exit 0
   }
 
   exit 0
 } catch {
-  # Print a single-line error for CI log readability.
-  Write-Error $_.Exception.Message -ErrorAction Continue
+  if ($Format -eq 'json') {
+    Write-JsonError -ToolVersion $ToolVersion -Command $commandName -Code 1 -Message $_.Exception.Message
+  } else {
+    Write-Error $_.Exception.Message -ErrorAction Continue
+  }
   exit 1
 }

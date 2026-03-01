@@ -20,6 +20,14 @@
 
   Context 3 - Aliases are comma-joined on one line:
     Verifies that multiple aliases appear as a comma-separated list.
+
+  Context 4 - -Format json, all optional fields populated (VER370):
+    Verifies the output is a single item that parses as valid JSON, ok is $true,
+    command is 'resolve', and result contains all fields including bds_reg_version.
+
+  Context 5 - -Format json, bds_reg_version is null:
+    Verifies that bds_reg_version is present in the JSON result as null (unlike
+    text mode, which omits the line entirely).
 #>
 
 # PESTER 5 SCOPING RULES apply here -- see Resolve-DefaultDataFilePath.Tests.ps1
@@ -125,6 +133,75 @@ Describe 'Write-ResolveOutput' {
 
     It 'aliases line contains all aliases comma-separated' {
       ($script:output -match 'aliases\s+VER150, Delphi7, D7') | Should -Not -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Format json and all optional fields are populated' {
+
+    BeforeAll {
+      $script:entry = [pscustomobject]@{
+        ver                  = 'VER370'
+        product_name         = 'Delphi 13 Florence'
+        compilerVersion      = '37.0'
+        package_version      = '370'
+        bds_reg_version      = '37.0'
+        registry_key_relpath = '\Software\Embarcadero\BDS\37.0'
+        aliases              = @('VER370', 'Delphi13', 'Delphi 13 Florence', 'D13')
+      }
+      $script:output = Write-ResolveOutput -Entry $script:entry -ToolVersion '0.1.0' -Format 'json'
+      $script:json   = $script:output | ConvertFrom-Json
+    }
+
+    It 'output is a single item' {
+      $script:output | Should -HaveCount 1
+    }
+
+    It 'output parses as valid JSON' {
+      { $script:output | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'ok is true' {
+      $script:json.ok | Should -Be $true
+    }
+
+    It 'command is resolve' {
+      $script:json.command | Should -Be 'resolve'
+    }
+
+    It 'result.ver matches the entry value' {
+      $script:json.result.ver | Should -Be 'VER370'
+    }
+
+    It 'result.bds_reg_version matches the entry value' {
+      $script:json.result.bds_reg_version | Should -Be '37.0'
+    }
+
+    It 'result.aliases contains all four aliases' {
+      $script:json.result.aliases | Should -HaveCount 4
+    }
+
+  }
+
+  Context 'Given -Format json and bds_reg_version is null' {
+
+    BeforeAll {
+      $script:entry = [pscustomobject]@{
+        ver                  = 'VER150'
+        product_name         = 'Delphi 7'
+        compilerVersion      = '15.0'
+        package_version      = '70'
+        bds_reg_version      = $null
+        registry_key_relpath = '\Software\Borland\Delphi\7.0'
+        aliases              = @('VER150', 'Delphi7', 'D7')
+      }
+      $script:output = Write-ResolveOutput -Entry $script:entry -ToolVersion '0.1.0' -Format 'json'
+      $script:json   = $script:output | ConvertFrom-Json
+    }
+
+    It 'result.bds_reg_version is null rather than absent' {
+      $script:json.result.PSObject.Properties['bds_reg_version'] | Should -Not -BeNullOrEmpty
+      $script:json.result.bds_reg_version | Should -Be $null
     }
 
   }

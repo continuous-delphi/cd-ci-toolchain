@@ -131,9 +131,11 @@ invalid-argument conditions detected inside the script body.
 ### Machine output contract
 
 When JSON output is requested (`-Format json`), both implementations emit a stable JSON
-envelope. 
+envelope.
 
-Success:
+Property names in `result` match the dataset field names exactly.
+
+Success (`-Version`):
 
 ```json
 {
@@ -144,22 +146,46 @@ Success:
     "impl": "pwsh|delphi",
     "version": "X.Y.Z"
   },
-  "data": {
+  "result": {
     "schemaVersion": "1.0.0",
     "dataVersion": "0.1.0",
-    "generatedUtcDate": "YYYY-MM-DD",
-    "datasetSource": "override|file|embedded"
-  },
-  "result": {}
+    "generated_utc_date": "YYYY-MM-DD"
+  }
 }
 ```
+
+Success (`-Resolve`):
+
+```json
+{
+  "ok": true,
+  "command": "resolve",
+  "tool": {
+    "name": "cd-ci-toolchain",
+    "impl": "pwsh|delphi",
+    "version": "X.Y.Z"
+  },
+  "result": {
+    "ver": "VER150",
+    "product_name": "Delphi 7",
+    "compilerVersion": "15.0",
+    "package_version": "70",
+    "bds_reg_version": null,
+    "registry_key_relpath": "\\Software\\Borland\\Delphi\\7.0",
+    "aliases": ["VER150", "Delphi7", "D7"]
+  }
+}
+```
+
+All `result` fields are always present in JSON output; optional fields that are
+absent in the dataset appear as `null` rather than being omitted.
 
 Error:
 
 ```json
 {
   "ok": false,
-  "command": "detect-installed",
+  "command": "version",
   "tool": {
     "name": "cd-ci-toolchain",
     "impl": "pwsh|delphi",
@@ -167,7 +193,7 @@ Error:
   },
   "error": {
     "code": 3,
-    "message": "Dataset missing or unreadable."
+    "message": "Data file not found: ..."
   }
 }
 ```

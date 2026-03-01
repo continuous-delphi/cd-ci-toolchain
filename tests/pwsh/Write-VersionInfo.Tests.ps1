@@ -30,6 +30,14 @@
     Verifies the generated line is absent and total line count is 3.
     (meta is non-null, so the first guard passes; generated_utc_date is null,
     so the second guard fails and $generated stays null.)
+
+  Context 6 - -Format json, all fields populated:
+    Verifies the output is a single item that parses as valid JSON, ok is $true,
+    command is 'version', and result contains schemaVersion, dataVersion, and
+    generated_utc_date with the expected values.
+
+  Context 7 - -Format json, meta is null:
+    Verifies the output parses as valid JSON and result.generated_utc_date is null.
 #>
 
 # PESTER 5 SCOPING RULES apply here -- see Resolve-DefaultDataFilePath.Tests.ps1
@@ -160,6 +168,70 @@ Describe 'Write-VersionInfo' {
 
     It 'output does not include a generated line' {
       ($script:output -match '^generated\s') | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Format json and all fields are populated' {
+
+    BeforeAll {
+      $script:data = [pscustomobject]@{
+        schemaVersion = '1.0.0'
+        dataVersion   = '0.1.0'
+        meta          = [pscustomobject]@{ generated_utc_date = '2026-01-01' }
+      }
+      $script:output = Write-VersionInfo -ToolVersion '0.1.0' -Data $script:data -Format 'json'
+      $script:json   = $script:output | ConvertFrom-Json
+    }
+
+    It 'output is a single item' {
+      $script:output | Should -HaveCount 1
+    }
+
+    It 'output parses as valid JSON' {
+      { $script:output | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'ok is true' {
+      $script:json.ok | Should -Be $true
+    }
+
+    It 'command is version' {
+      $script:json.command | Should -Be 'version'
+    }
+
+    It 'result.schemaVersion matches the dataset value' {
+      $script:json.result.schemaVersion | Should -Be '1.0.0'
+    }
+
+    It 'result.dataVersion matches the dataset value' {
+      $script:json.result.dataVersion | Should -Be '0.1.0'
+    }
+
+    It 'result.generated_utc_date matches the dataset value' {
+      $script:json.result.generated_utc_date | Should -Be '2026-01-01'
+    }
+
+  }
+
+  Context 'Given -Format json and meta is null' {
+
+    BeforeAll {
+      $script:data = [pscustomobject]@{
+        schemaVersion = '1.0.0'
+        dataVersion   = '0.1.0'
+        meta          = $null
+      }
+      $script:output = Write-VersionInfo -ToolVersion '0.1.0' -Data $script:data -Format 'json'
+      $script:json   = $script:output | ConvertFrom-Json
+    }
+
+    It 'output parses as valid JSON' {
+      { $script:output | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'result.generated_utc_date is null' {
+      $script:json.result.generated_utc_date | Should -Be $null
     }
 
   }
