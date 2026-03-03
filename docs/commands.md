@@ -1,4 +1,4 @@
-# delphi-toolchain-inspect Command Reference
+# Command Reference
 
 This document describes the command-line interface for
 `delphi-toolchain-inspect.ps1`.
@@ -7,7 +7,7 @@ This document describes the command-line interface for
 
 # Overview
 
-`delphi-toolchain-inspect` provides four primary actions:
+`delphi-toolchain-inspect.ps1` provides four primary actions:
 
 -   `-Version` --- Display tool and dataset metadata
 -   `-Resolve` --- Resolve a Delphi alias or VER### constant to
@@ -49,8 +49,6 @@ Labels are left-padded to a fixed column width.
     schemaVersion   1.0.0
     generated       2026-01-01
 
-If `generatedUtcDate` is null, empty, or whitespace in the dataset,
-the `generated` line is omitted.
 
 ### Output (json format)
 
@@ -69,8 +67,6 @@ the `generated` line is omitted.
       }
     }
 
-`generatedUtcDate` is always present in JSON output; it is `null`
-when absent from the dataset.
 
 ------------------------------------------------------------------------
 
