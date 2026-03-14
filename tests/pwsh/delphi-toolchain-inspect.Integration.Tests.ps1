@@ -141,11 +141,11 @@
     result.platform=Win32/result.buildSystem=DCC, result.installation=null.
     Clean stderr.
 
-  Context 29 - -DetectLatest without -Platform:
-    Exit 1 (PowerShell parameter binding rejects the invocation), no stdout, stderr present.
+  Context 29 - -DetectLatest omitting -Platform (uses Win32 default):
+    Exit 6, JSON result.platform=Win32, result.buildSystem=DCC (explicit), clean stderr.
 
-  Context 30 - -DetectLatest without -BuildSystem:
-    Exit 1 (PowerShell parameter binding rejects the invocation), no stdout, stderr present.
+  Context 30 - -DetectLatest omitting -BuildSystem (uses MSBuild default):
+    Exit 6, JSON result.buildSystem=MSBuild, result.platform=Win32 (explicit), clean stderr.
 #>
 
 Describe 'delphi-toolchain-inspect.ps1 (subprocess)' {
@@ -943,44 +943,54 @@ Describe 'delphi-toolchain-inspect.ps1 (subprocess)' {
 
   }
 
-  Context 'Given -DetectLatest without -Platform' {
+  Context 'Given -DetectLatest omitting -Platform (default Win32 applies)' {
 
     BeforeAll {
-      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
-                                       -Arguments @('-DetectLatest', '-BuildSystem', 'DCC', '-DataFile', $script:listInstalledFixturePath)
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-DetectLatest', '-BuildSystem', 'DCC', '-Format', 'json', '-DataFile', $script:listInstalledFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
     }
 
-    It 'exits with code 1 (PowerShell parameter binding failure)' {
-      $script:run.ExitCode | Should -Be 1
+    It 'exits with code 6 (no ready installation found)' {
+      $script:run.ExitCode | Should -Be 6
     }
 
-    It 'produces no stdout' {
-      $script:run.StdOut | Should -BeNullOrEmpty
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
     }
 
-    It 'emits stderr' {
-      $script:run.StdErr | Should -Not -BeNullOrEmpty
+    It 'JSON result.platform defaults to Win32' {
+      $script:json.result.platform | Should -Be 'Win32'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
     }
 
   }
 
-  Context 'Given -DetectLatest without -BuildSystem' {
+  Context 'Given -DetectLatest omitting -BuildSystem (default MSBuild applies)' {
 
     BeforeAll {
-      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
-                                       -Arguments @('-DetectLatest', '-Platform', 'Win32', '-DataFile', $script:listInstalledFixturePath)
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-DetectLatest', '-Platform', 'Win32', '-Format', 'json', '-DataFile', $script:listInstalledFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
     }
 
-    It 'exits with code 1 (PowerShell parameter binding failure)' {
-      $script:run.ExitCode | Should -Be 1
+    It 'exits with code 6 (no ready installation found)' {
+      $script:run.ExitCode | Should -Be 6
     }
 
-    It 'produces no stdout' {
-      $script:run.StdOut | Should -BeNullOrEmpty
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
     }
 
-    It 'emits stderr' {
-      $script:run.StdErr | Should -Not -BeNullOrEmpty
+    It 'JSON result.buildSystem defaults to MSBuild' {
+      $script:json.result.buildSystem | Should -Be 'MSBuild'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
     }
 
   }

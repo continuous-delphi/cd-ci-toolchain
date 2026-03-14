@@ -56,14 +56,14 @@ param(
   [switch]$DetectLatest,
 
   [Parameter(ParameterSetName='ListInstalled', Mandatory=$true)]
-  [Parameter(ParameterSetName='DetectLatest', Mandatory=$true)]
+  [Parameter(ParameterSetName='DetectLatest')]
   [ValidateSet('Win32', 'Win64')]
-  [string]$Platform,
+  [string]$Platform = 'Win32',
 
   [Parameter(ParameterSetName='ListInstalled', Mandatory=$true)]
-  [Parameter(ParameterSetName='DetectLatest', Mandatory=$true)]
+  [Parameter(ParameterSetName='DetectLatest')]
   [ValidateSet('DCC', 'MSBuild')]
-  [string]$BuildSystem,
+  [string]$BuildSystem = 'MSBuild',
 
   [Parameter()]
   [string]$DataFile,
