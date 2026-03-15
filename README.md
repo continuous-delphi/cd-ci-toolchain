@@ -19,6 +19,7 @@ contract:
 Neither implementation is primary. They serve overlapping but distinct audiences and are both
 first-class deliverables.
 
+<img alt="delphi-inspect logo" src="https://private-user-images.githubusercontent.com/3165264/563655546-f07a1f3b-441f-4462-a504-df4fdf5303e0.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzM1NDUxMTgsIm5iZiI6MTc3MzU0NDgxOCwicGF0aCI6Ii8zMTY1MjY0LzU2MzY1NTU0Ni1mMDdhMWYzYi00NDFmLTQ0NjItYTUwNC1kZjRmZGY1MzAzZTAucG5nP1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQVZDT0RZTFNBNTNQUUs0WkElMkYyMDI2MDMxNSUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNjAzMTVUMDMyMDE4WiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9OTY4YmMxOWNlZGNhOGU2MGUzYTQ3NzI5YTZlNzc5NTNkZGEwYjgyMzE0ZWQ5MGE4ZjQwZTVhZThiYWY3NDZlZiZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QifQ.v0ZRNw3jiaRp-noQE9UzqYk108E2pSVzelRA7YYK9U0" width="327" height="296" />
 
 ## TLDR;
 
@@ -258,6 +259,8 @@ It will graduate to `stable` once:
 - At least one downstream consumer exists.
 
 Until graduation, breaking changes may occur in both implementations.
+
+<img src="https://raw.githubusercontent.com/continuous-delphi/.github/refs/heads/main/profile/ContinuousDelphi-grayscale.png" width="512" height="341" alt="Continuous-Delphi Logo" />
 
 ## Part of Continuous Delphi
 
