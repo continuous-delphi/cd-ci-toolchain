@@ -9,7 +9,7 @@
   Context 1 - Win32, DelphiLibraryPath present and non-empty:
     Returns true, does not throw.
 
-  Context 2 - Win64, DelphiLibraryPathWin64 present and non-empty:
+  Context 2 - Win64, DelphiLibraryPath present and non-empty (in a Win64 PropertyGroup):
     Returns true.
 
   Context 3 - Win32, DelphiLibraryPath node missing:
@@ -63,15 +63,18 @@ Describe 'Test-EnvOptionsLibraryPath' {
 
   }
 
-  Context 'Win64 - DelphiLibraryPathWin64 present and non-empty' {
+  Context 'Win64 - DelphiLibraryPath present and non-empty' {
 
     BeforeAll {
+      # RAD Studio stores library paths as 'DelphiLibraryPath' for all platforms.
+      # The Win64 PropertyGroup uses a Condition attribute to scope it; the element
+      # name is identical to Win32.
       $script:xmlPath = Join-Path $script:tmp 'envopts-win64-nonempty.proj'
       Set-Content -LiteralPath $script:xmlPath -Encoding UTF8NoBOM -Value @'
 <?xml version="1.0"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <DelphiLibraryPathWin64>C:\Embarcadero\Studio\37.0\lib\win64\release</DelphiLibraryPathWin64>
+  <PropertyGroup Condition="'$(Platform)'=='Win64'">
+    <DelphiLibraryPath>C:\Embarcadero\Studio\37.0\lib\win64\release</DelphiLibraryPath>
   </PropertyGroup>
 </Project>
 '@
@@ -81,7 +84,7 @@ Describe 'Test-EnvOptionsLibraryPath' {
       if (Test-Path -LiteralPath $script:xmlPath) { Remove-Item -LiteralPath $script:xmlPath -Force }
     }
 
-    It 'returns true for Win64 with non-empty DelphiLibraryPathWin64' {
+    It 'returns true for Win64 with non-empty DelphiLibraryPath' {
       Test-EnvOptionsLibraryPath -Path $script:xmlPath -Platform 'Win64' | Should -Be $true
     }
 
