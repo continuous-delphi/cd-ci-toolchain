@@ -1,5 +1,7 @@
  # delphi-inspect
 
+![delphi-inspect logo](https://github.com/continuous-delphi/.github/blob/main/profile/delphi-inspect-480x270.png?raw=true)
+
 ![Status](https://img.shields.io/badge/status-incubator-orange)
 ![License](https://img.shields.io/github/license/continuous-delphi/delphi-inspect.svg)
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
@@ -18,8 +20,6 @@ contract:
 
 Neither implementation is primary. They serve overlapping but distinct audiences and are both
 first-class deliverables.
-
-<img src="https://github.com/continuous-delphi/.github/blob/main/profile/delphi-inspect-logo.png?raw=true" alt="delphi-inspect-logo" width="350" height="300" />
 
 
 ## TLDR;
@@ -261,7 +261,7 @@ It will graduate to `stable` once:
 
 Until graduation, breaking changes may occur in both implementations.
 
-<img src="https://raw.githubusercontent.com/continuous-delphi/.github/refs/heads/main/profile/ContinuousDelphi-grayscale.png" width="512" height="341" alt="Continuous-Delphi Logo" />
+![continuous-delphi logo](https://github.com/continuous-delphi/.github/blob/main/profile/ContinuousDelphi-gray-480x270.png?raw=true)
 
 ## Part of Continuous Delphi
 
