@@ -377,12 +377,10 @@ function Test-EnvOptionsLibraryPath {
 
   try {
     [xml]$xml = Get-Content -LiteralPath $Path -Raw -Encoding UTF8NoBOM
-    $platformPropMap = @{
-      Win32 = 'DelphiLibraryPath'
-      Win64 = 'DelphiLibraryPathWin64'
-    }
-    $propName = $platformPropMap[$Platform]
-    $nodes     = $xml.SelectNodes("//*[local-name()='$propName']")
+    # RAD Studio uses 'DelphiLibraryPath' for all platforms (Win32, Win64, etc.).
+    # Platform differentiation is in the PropertyGroup Condition attributes, not
+    # the element name.  'DelphiLibraryPathWin64' does not exist in practice.
+    $nodes = $xml.SelectNodes("//*[local-name()='DelphiLibraryPath']")
     foreach ($node in $nodes) {
       if (-not [string]::IsNullOrWhiteSpace($node.InnerText)) {
         return $true
