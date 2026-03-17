@@ -21,6 +21,13 @@ $all  = pwsh delphi-inspect.ps1 -ListKnown
 $inst = pwsh delphi-inspect.ps1 -ListInstalled -Platform Win32 -BuildSystem DCC -Readiness all
 $best = pwsh delphi-inspect.ps1 -DetectLatest
 
+# Example using MSBuild with Delphi 13 Florence
+# Use "Locate" to pin a Delphi version within your script so it can be run
+# on developer machines that may have custom RAD Studio installation paths
+# Locate with: VER370, Florence, Delphi 13, or 13 Florence...whichever is your preference
+./delphi-inspect.ps1 -Locate -Name Florence | ./delphi-msbuild.ps1 -ProjectFile 'MyProj.dproj' -Platform Win64
+
+
 # Text format -- human-readable output
 pwsh delphi-inspect.ps1
 pwsh delphi-inspect.ps1 -Version -Format text
@@ -65,6 +72,7 @@ Note: the test suite requires `pwsh`.
 | `ListKnown`       | List all known Delphi versions from the dataset  |
 | `ListInstalled`   | List all Delphi versions with readiness state    |
 | `DetectLatest`    | Return the single highest-versioned ready install |
+| `Locate`       | Return the installation root directory for a specific installed version  |
 | `Resolve`         | Resolve an alias or VER### to a canonical entry  |
 
 See [docs/commands.md](docs/commands.md) for full command reference including switches,

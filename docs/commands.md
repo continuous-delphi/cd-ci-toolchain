@@ -7,11 +7,13 @@ This document describes the command-line interface for
 
 # Overview
 
-`delphi-inspect.ps1` provides five primary actions:
+`delphi-inspect.ps1` provides six primary actions:
 
 -   `-Version` --- Display tool and dataset metadata
 -   `-Resolve` --- Resolve a Delphi alias or VER### constant to
     canonical version data
+-   `-Locate` --- Return the installation root directory for a specific
+    installed version
 -   `-ListKnown` --- List all known Delphi versions from the dataset
 -   `-ListInstalled` --- List all Delphi versions with readiness state
 -   `-DetectLatest` --- Return the single highest-versioned ready install
@@ -149,6 +151,89 @@ being omitted.
         "aliases": ["VER150", "Delphi7", "D7"]
       }
     }
+
+------------------------------------------------------------------------
+
+## -Locate
+
+Look up a specific Delphi version by alias or VER### constant and return
+its installation root directory (`RootDir`) from the Windows registry.
+
+This is the complement to `-Resolve`: where `-Resolve` returns dataset
+metadata, `-Locate` returns the actual on-disk installation path for a
+named version.  It is intended for build scripts that need to pin to a
+specific Delphi version and pass its root path to another tool (e.g.
+`delphi-msbuild`).
+
+### Syntax
+
+    -Locate <name>
+    -Locate -Name <name>
+
+`-Name` is mandatory.  It may be supplied positionally (first argument
+after `-Locate`) or explicitly via `-Name`.  Omitting it is a
+parameter binding error (exit code 1).
+
+Matching is case-insensitive.  The lookup checks each entry in order:
+`verDefine` (e.g. `VER150`), then `productName` (e.g. `Delphi 7`),
+then the `aliases` array (e.g. `D7`, `Delphi 11`).  The first match
+wins.
+
+### Examples
+
+    pwsh delphi-inspect.ps1 -Locate "Delphi 13"
+    pwsh delphi-inspect.ps1 -Locate VER370
+    pwsh delphi-inspect.ps1 -Locate -Name VER370
+    pwsh delphi-inspect.ps1 -Locate VER370 -Format json
+
+    # Pass the root path to another tool
+    $root = (.\delphi-inspect.ps1 -Locate VER370).rootDir
+    & "$root\bin\rsvars.bat"
+
+### Output (object format, default)
+
+Returns one `pscustomobject` with properties:
+
+    verDefine   -- canonical VER### constant from the dataset
+    productName -- human-readable product name
+    rootDir     -- installation root directory from the registry
+
+### Output (text format)
+
+Labels are left-padded to a 20-character column width.
+
+    verDefine           VER370
+    productName         Delphi 13 Florence
+    rootDir             C:\Program Files (x86)\Embarcadero\Studio\24.0\
+
+### Output (json format)
+
+    {
+      "ok": true,
+      "command": "locate",
+      "tool": {
+        "name": "delphi-inspect",
+        "version": "0.1.0"
+      },
+      "result": {
+        "verDefine": "VER370",
+        "productName": "Delphi 13 Florence",
+        "rootDir": "C:\\Program Files (x86)\\Embarcadero\\Studio\\24.0\\"
+      }
+    }
+
+### Exit codes
+
+| Code | Condition |
+|------|-----------|
+| `0`  | Version found and installed; `rootDir` returned |
+| `4`  | Name not found in the dataset |
+| `5`  | Registry access error |
+| `6`  | Version known but not installed (registry entry absent or `RootDir` empty) |
+
+When exit code 6 is returned in json mode, a json error envelope is
+emitted (`ok: false`) rather than a success envelope, because no partial
+result is meaningful for a point lookup.
 
 ------------------------------------------------------------------------
 
@@ -691,11 +776,12 @@ the versions present in that file.
 
 # Parameter Rules
 
--   `-Version`, `-Resolve`, `-ListKnown`, `-ListInstalled`, and
-    `-DetectLatest` are mutually exclusive (enforced by PowerShell
+-   `-Version`, `-Resolve`, `-Locate`, `-ListKnown`, `-ListInstalled`,
+    and `-DetectLatest` are mutually exclusive (enforced by PowerShell
     parameter sets; exit code 1 if more than one is supplied).
 -   With no action switch, the default action is `-Version`.
--   `-Resolve` requires `-Name`; it may be supplied positionally.
+-   `-Resolve` and `-Locate` both require `-Name`; it may be supplied
+    positionally as the first argument after the action switch.
 -   `-ListInstalled` requires both `-Platform` and `-BuildSystem`;
     neither may be supplied positionally.
 -   `-DetectLatest` accepts `-Platform` and `-BuildSystem` as optional
@@ -716,9 +802,9 @@ the versions present in that file.
 | `1` | PowerShell parameter binding error or unexpected internal error |
 | `2` | Reserved (script-body argument validation; not currently used) |
 | `3` | Dataset missing or unreadable |
-| `4` | Alias not found (`-Resolve` only) |
-| `5` | Registry access error (`-ListInstalled` and `-DetectLatest` only) |
-| `6` | No installations found (`-ListInstalled` and `-DetectLatest` only) |
+| `4` | Alias not found (`-Resolve` and `-Locate` only) |
+| `5` | Registry access error (`-ListInstalled`, `-DetectLatest`, and `-Locate` only) |
+| `6` | No installations found (`-ListInstalled`, `-DetectLatest`, and `-Locate` only) |
 
 
 **PowerShell implementation note:** the PowerShell binder runs before the
@@ -748,14 +834,16 @@ written to stderr, nothing is written to stdout on error.
 -   On dataset errors (exit 3): stderr contains the error message,
     stdout is empty.
 -   On unknown alias (exit 4): stderr contains "Alias not found",
-    stdout is empty.
+    stdout is empty.  Applies to `-Resolve` and `-Locate`.
 -   On registry access error (exit 5): stderr contains the error
     message, stdout is empty.
--   On no installations found (exit 6): in text mode, stdout contains
-    "No installations found" (for `-ListInstalled`) or
-    "No ready installation found" (for `-DetectLatest`), stderr is empty.
-    In object mode, nothing is emitted to the pipeline; exit code 6 is
-    the signal.
+-   On no installations found (exit 6):
+    - `-ListInstalled` (text): stdout contains "No installations found",
+      stderr is empty.  Object mode: nothing emitted; exit code is signal.
+    - `-DetectLatest` (text): stdout contains "No ready installation found",
+      stderr is empty.  Object mode: nothing emitted; exit code is signal.
+    - `-Locate` (text and object): stderr contains "Not installed: <name>",
+      stdout is empty.  Exit code 6 is the signal.
 
 ## JSON format (-Format json)
 
@@ -768,11 +856,13 @@ written to stderr, nothing is written to stdout on error.
 -   On dataset errors (exit 3), unknown alias (exit 4), or registry
     access error (exit 5): stdout contains a JSON error envelope,
     stderr is empty.
--   On no installations found (exit 6): stdout contains the normal
-    JSON success envelope (ok: true); stderr is empty.  Exit code 6 is
-    the signal -- the envelope is still well-formed and machine-readable.
-    For `-ListInstalled`, all installations are listed as notFound.
-    For `-DetectLatest`, `installation` is null.
+-   On no installations found (exit 6):
+    - `-ListInstalled` and `-DetectLatest`: stdout contains a JSON success
+      envelope (ok: true); exit code 6 is the signal.  For
+      `-ListInstalled`, all installations are listed as notFound.  For
+      `-DetectLatest`, `installation` is null.
+    - `-Locate`: stdout contains a JSON error envelope (ok: false),
+      stderr is empty.  Exit code 6 is the signal.
 
 JSON error envelope:
 

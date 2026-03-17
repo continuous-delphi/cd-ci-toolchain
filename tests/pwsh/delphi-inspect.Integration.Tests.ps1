@@ -146,6 +146,36 @@
 
   Context 30 - -DetectLatest omitting -BuildSystem (uses MSBuild default):
     Exit 6, JSON result.buildSystem=MSBuild, result.platform=Win32 (explicit), clean stderr.
+
+  Contexts 31-38 cover the -Locate dispatch branch.  All supply -DataFile explicitly
+  using the resolve fixture (delphi-compiler-versions.resolve.json).
+  The test machine has no Delphi installed so all registry checks return null (not installed).
+
+  Context 31 - -Locate -Name VER150 (text mode, not installed):
+    Exit 6, no stdout, stderr contains "Not installed".
+
+  Context 32 - -Locate VER150 (positional -Name, text mode):
+    Exit 6.  Verifies Position=0 on -Name.
+
+  Context 33 - -Locate -Name ver150 (case-insensitive, text mode):
+    Exit 6, verifies the lookup is case-insensitive.
+
+  Context 34 - -Locate -Name for an alias not in the dataset:
+    Exit 4, no stdout, stderr contains "Alias not found".
+
+  Context 35 - -Locate without -Name:
+    Exit 1 (PowerShell parameter binding failure), no stdout, stderr present.
+
+  Context 36 - -Locate -Name VER150 -Format json (not installed):
+    Exit 6, stdout is a JSON error envelope (ok=false, error.code=6,
+    error.message contains "Not installed").  Clean stderr.
+
+  Context 37 - -Locate -Name for unknown alias -Format json:
+    Exit 4, stdout is a JSON error envelope (ok=false, error.code=4,
+    error.message contains "Alias not found").  Clean stderr.
+
+  Context 38 - -Locate default format (object), not installed:
+    Exit 6, no stdout, stderr present.
 #>
 
 Describe 'delphi-inspect.ps1 (subprocess)' {
@@ -1223,6 +1253,198 @@ Describe 'delphi-inspect.ps1 (subprocess)' {
       foreach ($inst in $installs) {
         $inst.readiness | Should -Be 'notApplicable'
       }
+    }
+
+  }
+
+  # ---- -Locate integration tests ----
+
+  Context 'Given -Locate -Name VER150 (text mode, not installed on test machine)' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Locate', '-Name', 'VER150', '-Format', 'text', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 6 (version known but not installed)' {
+      $script:run.ExitCode | Should -Be 6
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits at least one stderr line containing "Not installed"' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
+      ($script:run.StdErr -join "`n") | Should -Match 'Not installed'
+    }
+
+  }
+
+  Context 'Given -Locate VER150 (positional -Name, text mode)' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Locate', 'VER150', '-Format', 'text', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 6' {
+      $script:run.ExitCode | Should -Be 6
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Locate -Name ver150 (case-insensitive, text mode)' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Locate', '-Name', 'ver150', '-Format', 'text', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 6 (match found, not installed)' {
+      # exit 4 would mean the dataset lookup failed; exit 6 proves it matched VER150
+      $script:run.ExitCode | Should -Be 6
+    }
+
+  }
+
+  Context 'Given -Locate -Name for an alias not in the dataset' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Locate', '-Name', 'DelphiX', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 4' {
+      $script:run.ExitCode | Should -Be 4
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits at least one stderr line containing "Alias not found"' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
+      ($script:run.StdErr -join "`n") | Should -Match 'Alias not found'
+    }
+
+  }
+
+  Context 'Given -Locate without -Name' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Locate', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 1 (PowerShell parameter binding failure)' {
+      $script:run.ExitCode | Should -Be 1
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits stderr referencing the mandatory Name parameter' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
+      ($script:run.StdErr -join "`n") | Should -Match 'Name'
+    }
+
+  }
+
+  Context 'Given -Locate -Name VER150 -Format json (not installed)' {
+
+    BeforeAll {
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-Locate', '-Name', 'VER150', '-Format', 'json', '-DataFile', $script:resolveFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 6' {
+      $script:run.ExitCode | Should -Be 6
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is false' {
+      $script:json.ok | Should -Be $false
+    }
+
+    It 'JSON command is locate' {
+      $script:json.command | Should -Be 'locate'
+    }
+
+    It 'JSON error.code is 6' {
+      $script:json.error.code | Should -Be 6
+    }
+
+    It 'JSON error.message contains "Not installed"' {
+      $script:json.error.message | Should -Match 'Not installed'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Locate -Name for unknown alias -Format json' {
+
+    BeforeAll {
+      $script:run  = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                        -Arguments @('-Locate', '-Name', 'DelphiX', '-Format', 'json', '-DataFile', $script:resolveFixturePath)
+      $script:json = ($script:run.StdOut -join "`n") | ConvertFrom-Json
+    }
+
+    It 'exits with code 4' {
+      $script:run.ExitCode | Should -Be 4
+    }
+
+    It 'stdout parses as valid JSON' {
+      { ($script:run.StdOut -join "`n") | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'JSON ok is false' {
+      $script:json.ok | Should -Be $false
+    }
+
+    It 'JSON error.code is 4' {
+      $script:json.error.code | Should -Be 4
+    }
+
+    It 'JSON error.message contains "Alias not found"' {
+      $script:json.error.message | Should -Match 'Alias not found'
+    }
+
+    It 'produces no stderr' {
+      $script:run.StdErr | Should -BeNullOrEmpty
+    }
+
+  }
+
+  Context 'Given -Locate default format (object), not installed' {
+
+    BeforeAll {
+      $script:run = Invoke-ToolProcess -ScriptPath $script:scriptPath `
+                                       -Arguments @('-Locate', 'VER150', '-DataFile', $script:resolveFixturePath)
+    }
+
+    It 'exits with code 6' {
+      $script:run.ExitCode | Should -Be 6
+    }
+
+    It 'produces no stdout' {
+      $script:run.StdOut | Should -BeNullOrEmpty
+    }
+
+    It 'emits stderr' {
+      $script:run.StdErr | Should -Not -BeNullOrEmpty
     }
 
   }
