@@ -5,6 +5,12 @@ will be documented in this file.
 
 ---
 
+## [0.6.0] - 2026-03-17
+
+- Embed `delphi-compiler-versions.json` data into the script body so
+  it can be a completely stand-alone script.
+  [#27](https://github.com/continuous-delphi/delphi-inspect/issues/27)
+
 ## [0.5.0] - 2026-03-17
 
 - Add new `Locate` command
