@@ -72,6 +72,11 @@ jobs:
 
           printf '\n---\n\n# Change Log\n\n%s\n' "${CHANGELOG_SECTION}" >> release-notes.md
 
+      - name: Embed dataset into script
+        shell: pwsh
+        run: |
+          pwsh tools/update-delphi-compiler-versions-json.ps1
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

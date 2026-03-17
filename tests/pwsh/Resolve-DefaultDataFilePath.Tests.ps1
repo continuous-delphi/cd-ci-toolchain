@@ -7,9 +7,7 @@
   Covers: path resolution priority and fallback behaviour.
 
   Context 1 - Neither submodule nor sibling file present:
-    Verifies the returned path ends with the canonical data file name and
-    contains the spec submodule directory name (i.e. falls back to the
-    canonical submodule path for a meaningful error downstream).
+    Verifies $null is returned, signalling the caller to use embedded data.
 
   Context 2 - Sibling data file present, no submodule:
     Verifies that a delphi-compiler-versions.json placed next to the script
@@ -57,14 +55,9 @@ Describe 'Resolve-DefaultDataFilePath' {
       }
     }
 
-    It 'returns a path ending with the canonical data file name' {
+    It 'returns $null (signals caller to use embedded data)' {
       $result = Resolve-DefaultDataFilePath -ScriptPath $script:fakeScriptPath
-      $result | Should -Match ([regex]::Escape('delphi-compiler-versions.json'))
-    }
-
-    It 'returns the submodule path (canonical fallback for error reporting)' {
-      $result = Resolve-DefaultDataFilePath -ScriptPath $script:fakeScriptPath
-      $result | Should -Match ([regex]::Escape('submodules'))
+      $result | Should -BeNull
     }
 
   }
