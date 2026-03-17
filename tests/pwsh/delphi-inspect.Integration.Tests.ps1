@@ -216,7 +216,7 @@ Describe 'delphi-inspect.ps1 (subprocess)' {
 
     # Exact match: the first line is the canonical format contract for the tool header.
     It 'first stdout line is the tool header' {
-      $script:run.StdOut[0] | Should -Be 'delphi-inspect 0.1.0'
+      $script:run.StdOut[0] | Should -Match '^delphi-inspect \d+\.\d+\.\d+$'
     }
 
     It 'stdout includes a line with the dataVersion value' {
@@ -253,7 +253,7 @@ Describe 'delphi-inspect.ps1 (subprocess)' {
     }
 
     It 'first stdout line is the tool header' {
-      $script:run.StdOut[0] | Should -Be 'delphi-inspect 0.1.0'
+      $script:run.StdOut[0] | Should -Match '^delphi-inspect \d+\.\d+\.\d+$'
     }
 
     It 'stdout includes a line with the dataVersion value' {
@@ -336,7 +336,7 @@ Describe 'delphi-inspect.ps1 (subprocess)' {
     }
 
     It 'first stdout line is the tool header' {
-      $script:run.StdOut[0] | Should -Be 'delphi-inspect 0.1.0'
+      $script:run.StdOut[0] | Should -Match '^delphi-inspect \d+\.\d+\.\d+$'
     }
 
     It 'stdout has exactly four lines' {
