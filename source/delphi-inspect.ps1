@@ -43,8 +43,9 @@ NOTES
   Dataset resolution order when -DataFile is not supplied:
     1. <scriptDir>/delphi-compiler-versions.json  (sibling / standalone deployment)
     2. <repoRoot>/submodules/delphi-compiler-versions/data/delphi-compiler-versions.json
-  The first path that exists on disk is used.  If neither exists, path 2 is
-  returned so Import-JsonData produces a meaningful "Data file not found" error.
+    3. $EmbeddedData compiled into the script (run tools/Update-EmbeddedData.ps1 to refresh)
+  The first path that exists on disk is used.  If neither file is found the
+  script falls back to the embedded dataset, making it fully self-contained.
 
   -Format selects output format.  Valid values: object (default), text, json.
     object -- emit PowerShell objects to the pipeline (default; best for scripting)
@@ -136,6 +137,370 @@ $script:CompilerMap = @{
   'Android64'    = 'dccaarm64'
 }
 
+# Embedded dataset -- fallback used when no data file is found on disk.
+# Run tools/update-delphi-compiler-versions-json.ps1 to refresh from the submodule.
+# BEGIN-DELPHI-COMPILER-VERSIONS-JSON
+$EmbeddedData = @'
+{
+  "schemaVersion": "1.0.0",
+  "dataVersion": "1.0.0",
+  "meta": {
+    "generatedUtcDate": "2026-03-05",
+    "scope": {
+      "includeFromVer": "VER90",
+      "excluded": [
+        "C++Builder-only entries",
+        ".NET-only Delphi entries"
+      ]
+    },
+    "registryResolutionNotes": [
+      "regKeyRelativePath is hive-agnostic. Discovery tooling should check HKCU first, then HKLM.",
+      "Installation directory is typically available under <key>\\RootDir for Delphi 5+; Delphi 2-4 do not set RootDir."
+    ],
+    "platformNotes": [
+      "supportedPlatforms represents the union of all platforms across all point releases within a version family.",
+      "See individual entry notes for platforms introduced in sub-version point releases.",
+      "Tooling should check supportedBuildSystems and supportedPlatforms before assessing installation readiness.",
+      "Return notApplicable readiness when the requested buildSystem or platform is absent from the supported arrays."
+    ]
+  },
+  "versions": [
+    {
+      "verDefine": "VER90",
+      "compilerVersion": "9.0",
+      "productName": "Delphi 2",
+      "packageVersion": "20",
+      "regKeyRelativePath": "\\Software\\Borland\\Delphi\\2.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi2", "D2"],
+      "notes": [
+        "Delphi 2 installs do not record RootDir in the registry; discovery may require manual configuration.",
+        "CompilerVersion constant not available at runtime; compilerVersion value is inferred."
+      ]
+    },
+    {
+      "verDefine": "VER100",
+      "compilerVersion": "10.0",
+      "productName": "Delphi 3",
+      "packageVersion": "30",
+      "regKeyRelativePath": "\\Software\\Borland\\Delphi\\3.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi3", "D3"],
+      "notes": [
+        "Delphi 3 installs do not record RootDir in the registry; discovery may require manual configuration.",
+        "CompilerVersion constant not available at runtime; compilerVersion value is inferred."
+      ]
+    },
+    {
+      "verDefine": "VER120",
+      "compilerVersion": "12.0",
+      "productName": "Delphi 4",
+      "packageVersion": "40",
+      "regKeyRelativePath": "\\Software\\Borland\\Delphi\\4.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi4", "D4"],
+      "notes": [
+        "Delphi 4 installs do not record RootDir in the registry; discovery may require manual configuration.",
+        "CompilerVersion constant not available at runtime; compilerVersion value is inferred."
+      ]
+    },
+    {
+      "verDefine": "VER130",
+      "compilerVersion": "13.0",
+      "productName": "Delphi 5",
+      "packageVersion": "50",
+      "regKeyRelativePath": "\\Software\\Borland\\Delphi\\5.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi5", "D5"],
+      "notes": [
+        "CompilerVersion constant not available at runtime; compilerVersion value is inferred."
+      ]
+    },
+    {
+      "verDefine": "VER140",
+      "compilerVersion": "14.0",
+      "productName": "Delphi 6",
+      "packageVersion": "60",
+      "regKeyRelativePath": "\\Software\\Borland\\Delphi\\6.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi6", "D6"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER150",
+      "compilerVersion": "15.0",
+      "productName": "Delphi 7",
+      "packageVersion": "70",
+      "regKeyRelativePath": "\\Software\\Borland\\Delphi\\7.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi7", "D7"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER170",
+      "compilerVersion": "17.0",
+      "productName": "Delphi 2005",
+      "packageVersion": "90",
+      "regKeyRelativePath": "\\Software\\Borland\\BDS\\3.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi2005", "D2005"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER180",
+      "compilerVersion": "18.0",
+      "productName": "Delphi 2006",
+      "packageVersion": "100",
+      "regKeyRelativePath": "\\Software\\Borland\\BDS\\4.0",
+      "supportedBuildSystems": ["DCC"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi2006", "D2006"],
+      "notes": ["Delphi 2007 also defines VER180 (shared with Delphi 2006). Use VER185 for 2007-only identification."]
+    },
+    {
+      "verDefine": "VER185",
+      "compilerVersion": "18.5",
+      "productName": "Delphi 2007",
+      "packageVersion": "110",
+      "regKeyRelativePath": "\\Software\\Borland\\BDS\\5.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi2007", "D2007"],
+      "notes": [
+        "Delphi 2007 also defines VER180 (shared with Delphi 2006). Use VER185 for 2007-only identification.",
+        "First version to support MSBuild via .dproj project files."
+      ]
+    },
+    {
+      "verDefine": "VER200",
+      "compilerVersion": "20.0",
+      "productName": "Delphi 2009",
+      "packageVersion": "120",
+      "regKeyRelativePath": "\\Software\\CodeGear\\BDS\\6.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi2009", "D2009"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER210",
+      "compilerVersion": "21.0",
+      "productName": "Delphi 2010",
+      "packageVersion": "140",
+      "regKeyRelativePath": "\\Software\\CodeGear\\BDS\\7.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["Delphi2010", "D2010"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER220",
+      "compilerVersion": "22.0",
+      "productName": "Delphi XE",
+      "packageVersion": "150",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\8.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32"],
+      "aliases": ["DelphiXE", "XE"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER230",
+      "compilerVersion": "23.0",
+      "productName": "Delphi XE2",
+      "packageVersion": "160",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\9.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32"],
+      "aliases": ["DelphiXE2", "XE2"],
+      "notes": [
+        "First version to support Win64, and macOS 32-bit targets (experimental iOS32 not included)",
+        "DocWiki notes FireMonkey package versions 160/161 for XE2 updates; packageVersion here reflects the main table value."
+      ]
+    },
+    {
+      "verDefine": "VER240",
+      "compilerVersion": "24.0",
+      "productName": "Delphi XE3",
+      "packageVersion": "170",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\10.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32"],
+      "aliases": ["DelphiXE3", "XE3"],
+      "notes": ["Experimental iOS32 support not included in supportedPlatforms"]
+    },
+    {
+      "verDefine": "VER250",
+      "compilerVersion": "25.0",
+      "productName": "Delphi XE4",
+      "packageVersion": "180",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\11.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "iOS32", "iOSSimulator32"],
+      "aliases": ["DelphiXE4", "XE4"],
+      "notes": [
+        "First version to support full iOS device/simulator/App Store deployment (experimental Android not included)."
+      ]
+    },
+    {
+      "verDefine": "VER260",
+      "compilerVersion": "26.0",
+      "productName": "Delphi XE5",
+      "packageVersion": "190",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\12.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "iOS32", "iOSSimulator32", "Android32"],
+      "aliases": ["DelphiXE5", "XE5"],
+      "notes": ["First version to support Android 32-bit"]
+    },
+    {
+      "verDefine": "VER270",
+      "compilerVersion": "27.0",
+      "productName": "Delphi XE6",
+      "packageVersion": "200",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\14.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "iOS32", "iOSSimulator32", "Android32"],
+      "aliases": ["DelphiXE6", "XE6"],
+      "notes": [
+        "Product version jumps from 12.0 to 14.0 in the DocWiki table (skip 'unlucky 13')."
+      ]
+    },
+    {
+      "verDefine": "VER280",
+      "compilerVersion": "28.0",
+      "productName": "Delphi XE7",
+      "packageVersion": "210",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\15.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "iOS32", "iOSSimulator32", "Android32"],
+      "aliases": ["DelphiXE7", "XE7"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER290",
+      "compilerVersion": "29.0",
+      "productName": "Delphi XE8",
+      "packageVersion": "220",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\16.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "macOS64", "iOS32", "iOSSimulator32", "Android32"],
+      "aliases": ["DelphiXE8", "XE8"],
+      "notes": [
+        "First version to support macOS 64-bit (Intel)."
+      ]
+    },
+    {
+      "verDefine": "VER300",
+      "compilerVersion": "30.0",
+      "productName": "Delphi 10 Seattle",
+      "packageVersion": "230",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\17.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "macOS64", "iOS32", "iOSSimulator32", "iOS64", "Android32"],
+      "aliases": ["Delphi 10", "Seattle", "10 Seattle"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER310",
+      "compilerVersion": "31.0",
+      "productName": "Delphi 10.1 Berlin",
+      "packageVersion": "240",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\18.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "macOS64", "iOS32", "iOSSimulator32", "iOS64", "Android32"],
+      "aliases": ["Delphi 10.1", "Berlin", "10.1 Berlin"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER320",
+      "compilerVersion": "32.0",
+      "productName": "Delphi 10.2 Tokyo",
+      "packageVersion": "250",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\19.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS32", "macOS64", "iOS32", "iOSSimulator32", "iOS64", "Android32", "Linux64"],
+      "aliases": ["Delphi 10.2", "Tokyo", "10.2 Tokyo"],
+      "notes": [
+        "First version to support Linux 64-bit."
+      ]
+    },
+    {
+      "verDefine": "VER330",
+      "compilerVersion": "33.0",
+      "productName": "Delphi 10.3 Rio",
+      "packageVersion": "260",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\20.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS64", "iOS32", "iOSSimulator32", "iOS64", "Android32", "Android64", "Linux64"],
+      "aliases": ["Delphi 10.3", "Rio", "10.3 Rio"],
+      "notes": [
+        "macOS 32-bit dropped in this version family (Catalina removed 32-bit app support at the OS level).",
+        "macOS 64-bit (Intel) added in 10.3 Update 2 (point release); 10.3.0 and 10.3.1 do not include macOS 64-bit.",
+        "Android 64-bit added in 10.3 Update 3 (point release); earlier 10.3.x releases do not include Android 64-bit."
+      ]
+    },
+    {
+      "verDefine": "VER340",
+      "compilerVersion": "34.0",
+      "productName": "Delphi 10.4 Sydney",
+      "packageVersion": "270",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\21.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS64", "iOS32", "iOS64", "Android32", "Android64", "Linux64"],
+      "aliases": ["Delphi 10.4", "Sydney", "10.4 Sydney"],
+      "notes": ["Apple removed 32-bit simulator support from Xcode, effectively killing iOSSimulator32"]
+    },
+    {
+      "verDefine": "VER350",
+      "compilerVersion": "35.0",
+      "productName": "Delphi 11 Alexandria",
+      "packageVersion": "280",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\22.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS64", "macOSARM64", "iOS32", "iOS64", "iOSSimulator64", "Android32", "Android64", "Linux64"],
+      "aliases": ["Delphi 11", "Alexandria", "11 Alexandria"],
+      "notes": [
+        "First version to support macOS ARM64 (Apple Silicon).",
+        "11.2 added iOS Simulator ARM 64-bit"
+      ]
+    },
+    {
+      "verDefine": "VER360",
+      "compilerVersion": "36.0",
+      "productName": "Delphi 12 Athens",
+      "packageVersion": "290",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\23.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS64", "macOSARM64", "iOS64", "iOSSimulator64", "Android32", "Android64", "Linux64"],
+      "aliases": ["Delphi 12", "Athens", "12 Athens"],
+      "notes": []
+    },
+    {
+      "verDefine": "VER370",
+      "compilerVersion": "37.0",
+      "productName": "Delphi 13 Florence",
+      "packageVersion": "370",
+      "regKeyRelativePath": "\\Software\\Embarcadero\\BDS\\37.0",
+      "supportedBuildSystems": ["DCC", "MSBuild"],
+      "supportedPlatforms": ["Win32", "Win64", "macOS64", "macOSARM64", "iOS64", "iOSSimulator64", "Android32", "Android64", "Linux64"],
+      "aliases": ["Delphi 13", "Florence", "13 Florence"],
+      "notes": [
+        "RAD Studio 13 unifies internal version numbers to 37 (registry, RTL, packages)."
+      ]
+    }
+  ]
+}
+'@
+# END-DELPHI-COMPILER-VERSIONS-JSON
+
 function Resolve-DefaultDataFilePath {
   param([string]$ScriptPath)
 
@@ -165,9 +530,8 @@ function Resolve-DefaultDataFilePath {
     return $submodulePath
   }
 
-  # Neither found: return the submodule path so Import-JsonData produces a
-  # meaningful "Data file not found: ..." error pointing at the expected location.
-  return $submodulePath
+  # Neither found: return $null to signal the caller to use embedded data.
+  return $null
 }
 
 function Import-JsonData {
@@ -806,8 +1170,14 @@ try {
   if (-not $doVersion -and -not $Resolve -and -not $Locate -and -not $ListKnown -and -not $ListInstalled -and -not $DetectLatest) { $doVersion = $true }
   $commandName = if ($Resolve) { 'resolve' } elseif ($Locate) { 'locate' } elseif ($ListKnown) { 'listKnown' } elseif ($ListInstalled) { 'listInstalled' } elseif ($DetectLatest) { 'detectLatest' } else { 'version' }
 
+  $useEmbedded = $false
   if ([string]::IsNullOrWhiteSpace($DataFile)) {
-    $DataFile = Resolve-DefaultDataFilePath -ScriptPath $scriptPath
+    $resolvedPath = Resolve-DefaultDataFilePath -ScriptPath $scriptPath
+    if ($null -ne $resolvedPath) {
+      $DataFile = $resolvedPath
+    } else {
+      $useEmbedded = $true
+    }
   }
 
   # NOTE: dataset errors exit here directly (exit 3) rather than propagating
@@ -816,7 +1186,11 @@ try {
   # a single exit at the script's top level.  That eliminates scattered exit
   # calls and makes the code table easy to audit in one place.
   try {
-    $data = Import-JsonData -Path $DataFile
+    $data = if ($useEmbedded) {
+      $EmbeddedData | ConvertFrom-Json
+    } else {
+      Import-JsonData -Path $DataFile
+    }
   } catch {
     if ($Format -eq 'json') {
       Write-JsonError -ToolVersion $ToolVersion -Command $commandName -Code $ExitDatasetError -Message $_.Exception.Message
