@@ -17,6 +17,9 @@ USAGE
   pwsh ./source/delphi-inspect.ps1 -DataFile <path>
   pwsh ./source/delphi-inspect.ps1 -DetectLatest -Platform Win32 -BuildSystem DCC
   pwsh ./source/delphi-inspect.ps1 -DetectLatest -Platform Win32 -BuildSystem DCC -Format json
+  pwsh ./source/delphi-inspect.ps1 -Locate -Name <alias>
+  pwsh ./source/delphi-inspect.ps1 -Locate <alias>
+  pwsh ./source/delphi-inspect.ps1 -Locate -Name <alias> -Format json
   pwsh ./source/delphi-inspect.ps1 -ListInstalled -Platform Win32 -BuildSystem DCC
   pwsh ./source/delphi-inspect.ps1 -ListInstalled -Platform Win32 -BuildSystem DCC -Readiness all
   pwsh ./source/delphi-inspect.ps1 -ListInstalled -Platform Win32 -BuildSystem DCC -Readiness partialInstall
@@ -28,9 +31,20 @@ NOTES
   -Resolve looks up an alias or VER### string in the dataset (case-insensitive)
   and prints the canonical entry fields.  Exit 4 when the alias is not found.
 
+  -Locate looks up an alias or VER### string (same matching as -Resolve) and
+  returns the RootDir of the installed version from the registry.
+  Exit 4 when the alias is not found in the dataset.
+  Exit 6 when the version is not installed (registry entry absent or RootDir empty).
+
   -DetectLatest scans all dataset entries and returns the single highest-versioned
   entry whose readiness is 'ready' for the specified platform and build system.
   Exit 0 on success; exit 6 when no ready installation exists.
+
+  Dataset resolution order when -DataFile is not supplied:
+    1. <scriptDir>/delphi-compiler-versions.json  (sibling / standalone deployment)
+    2. <repoRoot>/submodules/delphi-compiler-versions/data/delphi-compiler-versions.json
+  The first path that exists on disk is used.  If neither exists, path 2 is
+  returned so Import-JsonData produces a meaningful "Data file not found" error.
 
   -Format selects output format.  Valid values: object (default), text, json.
     object -- emit PowerShell objects to the pipeline (default; best for scripting)
@@ -53,7 +67,11 @@ param(
   [Parameter(ParameterSetName='Resolve', Mandatory=$true)]
   [switch]$Resolve,
 
+  [Parameter(ParameterSetName='Locate', Mandatory=$true)]
+  [switch]$Locate,
+
   [Parameter(ParameterSetName='Resolve', Mandatory=$true, Position=0)]
+  [Parameter(ParameterSetName='Locate',  Mandatory=$true, Position=0)]
   [string]$Name,
 
   [Parameter(ParameterSetName='ListKnown')]
@@ -127,15 +145,29 @@ function Resolve-DefaultDataFilePath {
 
   $scriptDir = Split-Path -Parent $ScriptPath
 
-  # Prefer the submodule layout:
-  #   ../delphi-compiler-versions/data/delphi-compiler-versions.json
-  # Use Join-Path to remain path-separator-safe if invoked on non-Windows runners.
-  $repoRoot    = Split-Path $scriptDir -Parent
-  $specRoot = Join-Path (Join-Path $repoRoot 'submodules') 'delphi-compiler-versions'
-  $dataDir     = Join-Path $specRoot 'data'
-  $defaultPath = Join-Path $dataDir 'delphi-compiler-versions.json'
+  # Candidate 1 (preferred): sibling file next to the script
+  #   <scriptDir>/delphi-compiler-versions.json
+  # Checked first so a locally deployed dataset takes precedence over the submodule.
+  $siblingPath = Join-Path $scriptDir 'delphi-compiler-versions.json'
 
-  return $defaultPath
+  if (Test-Path -LiteralPath $siblingPath) {
+    return $siblingPath
+  }
+
+  # Candidate 2: submodule layout relative to repo root
+  #   <repoRoot>/submodules/delphi-compiler-versions/data/delphi-compiler-versions.json
+  # Use Join-Path to remain path-separator-safe if invoked on non-Windows runners.
+  $repoRoot      = Split-Path $scriptDir -Parent
+  $specRoot      = Join-Path (Join-Path $repoRoot 'submodules') 'delphi-compiler-versions'
+  $submodulePath = Join-Path (Join-Path $specRoot 'data') 'delphi-compiler-versions.json'
+
+  if (Test-Path -LiteralPath $submodulePath) {
+    return $submodulePath
+  }
+
+  # Neither found: return the submodule path so Import-JsonData produces a
+  # meaningful "Data file not found: ..." error pointing at the expected location.
+  return $submodulePath
 }
 
 function Import-JsonData {
@@ -304,6 +336,43 @@ function Write-ResolveOutput {
   if ($null -ne $Entry.aliases -and $Entry.aliases.Count -gt 0) {
     Write-Output ("aliases             {0}" -f ($Entry.aliases -join ', '))
   }
+}
+
+function Write-LocateOutput {
+  param(
+    [psobject]$Entry,
+    [string]$RootDir,
+    [string]$ToolVersion = '',
+    [string]$Format = 'object'
+  )
+
+  if ($Format -eq 'object') {
+    Write-Output ([pscustomobject]@{
+      verDefine   = $Entry.verDefine
+      productName = $Entry.productName
+      rootDir     = $RootDir
+    })
+    return
+  }
+
+  if ($Format -eq 'json') {
+    Write-JsonOutput ([pscustomobject]@{
+      ok      = $true
+      command = 'locate'
+      tool    = [pscustomobject]@{ name = 'delphi-inspect'; version = $ToolVersion }
+      result  = [pscustomobject]@{
+        verDefine   = $Entry.verDefine
+        productName = $Entry.productName
+        rootDir     = $RootDir
+      }
+    })
+    return
+  }
+
+  # text format -- label column matches -Resolve at 20 chars
+  Write-Output ("verDefine           {0}" -f $Entry.verDefine)
+  Write-Output ("productName         {0}" -f $Entry.productName)
+  Write-Output ("rootDir             {0}" -f $RootDir)
 }
 
 function Write-ListKnownOutput {
@@ -734,8 +803,8 @@ try {
   # Default behavior: if no action switches specified, treat as -Version.
   # Mutual exclusion and mandatory -Name are enforced by parameter sets.
   $doVersion = $Version
-  if (-not $doVersion -and -not $Resolve -and -not $ListKnown -and -not $ListInstalled -and -not $DetectLatest) { $doVersion = $true }
-  $commandName = if ($Resolve) { 'resolve' } elseif ($ListKnown) { 'listKnown' } elseif ($ListInstalled) { 'listInstalled' } elseif ($DetectLatest) { 'detectLatest' } else { 'version' }
+  if (-not $doVersion -and -not $Resolve -and -not $Locate -and -not $ListKnown -and -not $ListInstalled -and -not $DetectLatest) { $doVersion = $true }
+  $commandName = if ($Resolve) { 'resolve' } elseif ($Locate) { 'locate' } elseif ($ListKnown) { 'listKnown' } elseif ($ListInstalled) { 'listInstalled' } elseif ($DetectLatest) { 'detectLatest' } else { 'version' }
 
   if ([string]::IsNullOrWhiteSpace($DataFile)) {
     $DataFile = Resolve-DefaultDataFilePath -ScriptPath $scriptPath
@@ -773,6 +842,47 @@ try {
       exit $ExitAliasNotFound
     }
     Write-ResolveOutput -Entry $entry -ToolVersion $ToolVersion -Format $Format
+    exit $ExitSuccess
+  }
+
+  if ($Locate) {
+    $entry = Resolve-VersionEntry -Name $Name -Data $data
+    if ($null -eq $entry) {
+      if ($Format -eq 'json') {
+        Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitAliasNotFound -Message "Alias not found: $Name"
+      } else {
+        Write-Error "Alias not found: $Name" -ErrorAction Continue
+      }
+      exit $ExitAliasNotFound
+    }
+    if ([string]::IsNullOrWhiteSpace($entry.regKeyRelativePath)) {
+      if ($Format -eq 'json') {
+        Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitNoInstallationsFound -Message "No registry path known for: $Name"
+      } else {
+        Write-Error "No registry path known for: $Name" -ErrorAction Continue
+      }
+      exit $ExitNoInstallationsFound
+    }
+    $rootDir = $null
+    try {
+      $rootDir = Get-RegistryRootDir -RelativePath $entry.regKeyRelativePath
+    } catch {
+      if ($Format -eq 'json') {
+        Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitRegistryError -Message "Registry access failed: $($_.Exception.Message)"
+      } else {
+        Write-Error "Registry access failed: $($_.Exception.Message)" -ErrorAction Continue
+      }
+      exit $ExitRegistryError
+    }
+    if ($null -eq $rootDir) {
+      if ($Format -eq 'json') {
+        Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitNoInstallationsFound -Message "Not installed: $Name"
+      } else {
+        Write-Error "Not installed: $Name" -ErrorAction Continue
+      }
+      exit $ExitNoInstallationsFound
+    }
+    Write-LocateOutput -Entry $entry -RootDir $rootDir -ToolVersion $ToolVersion -Format $Format
     exit $ExitSuccess
   }
 

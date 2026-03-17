@@ -7,6 +7,9 @@ will be documented in this file.
 
 ## [0.5.0] Unreleased
 
+- Add new `Locate` command
+  [#25](https://github.com/continuous-delphi/delphi-inspect/issues/25)
+
 - Ensure `PowerShell 5.1` compatibility for the delphi-inspect.ps1 script
   (Tests remain the newer `pwsh`)  
   [#23](https://github.com/continuous-delphi/delphi-inspect/issues/23)
@@ -47,7 +50,7 @@ Default platform parameter to `Win32`, default build parameter to `MSBuild`
 <br />
 <br />
 
-## `Delphi-Inspect` - a developer tool from Continuous Delphi
+## `delphi-inspect` - a developer tool from Continuous Delphi
 
 ![continuous-delphi logo](https://continuous-delphi.github.io/assets/logos/continuous-delphi-480x270.png)
 
