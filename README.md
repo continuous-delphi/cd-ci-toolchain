@@ -2,12 +2,12 @@
 
 ![delphi-inspect logo](https://continuous-delphi.github.io/assets/logos/delphi-inspect-480x270.png)
 
+[![Delphi](https://img.shields.io/badge/delphi-red)](https://www.embarcadero.com/products/delphi)
 [![CI](https://github.com/continuous-delphi/delphi-inspect/actions/workflows/ci.yml/badge.svg)](https://github.com/continuous-delphi/delphi-inspect/actions/workflows/ci.yml)
-![Status](https://img.shields.io/badge/status-incubator-orange)
-![License](https://img.shields.io/github/license/continuous-delphi/delphi-inspect.svg)
-![Delphi](https://img.shields.io/badge/delphi-red)
-![PowerShell](https://img.shields.io/badge/powershell-blue)
-![Continuous Delphi](https://img.shields.io/badge/org-continuous--delphi-red)
+[![GitHub Release](https://img.shields.io/github/v/release/continuous-delphi/delphi-inspect?display_name=release)](https://github.com/continuous-delphi/delphi-inspect/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/continuous-delphi/delphi-inspect)
+[![Continuous Delphi](https://img.shields.io/badge/org-continuous--delphi-red)](https://github.com/continuous-delphi)
 
 Deterministic Delphi toolchain discovery and normalization for Delphi systems.
 
