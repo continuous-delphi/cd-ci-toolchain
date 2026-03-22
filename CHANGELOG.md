@@ -5,6 +5,11 @@ will be documented in this file.
 
 ---
 
+## [1.0.0] - 2026-03-22
+
+- Updated delphi-compiler-versions to 1.4.0 for Delphi 13.1 `WinARM64EC` support
+
+
 ## [0.6.0] - 2026-03-17
 
 - Embed `delphi-compiler-versions.json` data into the script body so

@@ -166,23 +166,12 @@ Artifacts support the same three-tier dataset resolution priority. A newer
 `delphi-compiler-versions.json` file found will take precedence over
 the embedded data without regenerating or recompiling.
 
-
-## Maturity
-
-This repository is currently `incubator`. It will graduate to `stable` once:
-
-- The command contract is considered frozen.
-- At least one downstream consumer exists.
-
-Until graduation, breaking changes may occur.
+------------------------------------------------------------------------
 
 ![continuous-delphi logo](https://continuous-delphi.github.io/assets/logos/continuous-delphi-480x270.png)
 
-## Part of the Continuous Delphi Organization
+## Part of Continuous Delphi
 
-This repository follows the Continuous Delphi organization taxonomy. See
-[cd-meta-org](https://github.com/continuous-delphi/cd-meta-org) for navigation and governance.
+This tool is part of the [Continuous-Delphi](https://github.com/continuous-delphi)
+ecosystem, focused on improving engineering discipline for long-lived Delphi systems.
 
-- `docs/org-taxonomy.md` -- naming and tagging conventions
-- `docs/versioning-policy.md` -- release and versioning rules
-- `docs/repo-lifecycle.md` -- lifecycle states and graduation criteria
