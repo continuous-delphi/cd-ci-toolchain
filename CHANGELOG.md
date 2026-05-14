@@ -4,6 +4,10 @@ All notable changes to this project after it's initial release
 will be documented in this file.
 
 ---
+## [1.2.0] - 2026-05-14
+
+- Support for `delphi-logger` added (opt-in structural logging for debug
+purposes. [#35](https://github.com/continuous-delphi/delphi-inspect/issues/35)
 
 ## [1.1.0] - 2026-04-07
 

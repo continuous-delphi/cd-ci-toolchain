@@ -122,7 +122,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Tool version
-$ToolVersion = '1.1.0'
+$ToolVersion = '1.2.0'
 
 # Exit code constants -- single source of truth for the exit code contract.
 $ExitSuccess              = 0   # normal completion
