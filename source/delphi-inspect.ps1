@@ -133,6 +133,96 @@ $ExitAliasNotFound        = 4   # -Resolve name not in dataset
 $ExitRegistryError        = 5   # -ListInstalled registry access failure
 $ExitNoInstallationsFound = 6   # -ListInstalled: no ready/partial entries
 
+# BEGIN-CD-HOSTLOG
+# -----------------------------------------------------------------------------
+# Write-CDHostLog v0.1.0
+# Source: https://github.com/continuous-delphi/delphi-logger
+#
+# Universal output function for Continuous-Delphi PowerShell tooling.
+# Opt-in structured logging via ContinuousDelphi.Logger module.
+# See: https://github.com/continuous-delphi/delphi-logger/docs/output-modes.md
+# -----------------------------------------------------------------------------
+
+# Logger detection -- check once at load time whether the caller has loaded
+# ContinuousDelphi.Logger. If so, structured events are emitted alongside
+# native PowerShell stream output. If not, Write-CDHostLog routes to native
+# Write-Output / Write-Verbose / Write-Host / Write-Warning / Write-Error only.
+$script:LoggerAvailable = [bool](Get-Module -Name 'ContinuousDelphi.Logger')
+$script:LoggerCaptureOutput = if ($script:LoggerAvailable) {
+  $script:CDLoggerState = (Get-Module -Name 'ContinuousDelphi.Logger').SessionState.PSVariable.GetValue('CDLoggerState')
+  if ($null -ne $script:CDLoggerState) { $script:CDLoggerState.CaptureOutput } else { $false }
+} else { $false }
+
+function Write-CDHostLog {
+  [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '',
+    Justification='Write-Host is used intentionally for Info/Success level output to stream 6 without polluting the pipeline')]
+  param(
+    [Parameter(Mandatory)]
+    $Message,
+
+    [ValidateSet('Output','Trace','Debug','Verbose','Info','Success','Warning','Error','Fatal')]
+    [string]$Level = 'Info',
+
+    [string]$EventId,
+    [hashtable]$Data,
+
+    [switch]$LogOnly
+  )
+
+  # Write to native PowerShell stream (unless LogOnly)
+  if (-not $LogOnly) {
+    switch ($Level) {
+      'Output' {
+        Write-Output $Message
+      }
+      { $_ -in 'Trace','Debug','Verbose' } {
+        Write-Verbose $Message
+      }
+      { $_ -in 'Info','Success' } {
+        Write-Host $Message
+      }
+      'Warning' {
+        Write-Warning $Message
+      }
+      { $_ -in 'Error','Fatal' } {
+        Write-Error $Message -ErrorAction Continue
+      }
+    }
+  }
+
+  # Also emit structured log event if logger available
+  if ($script:LoggerAvailable) {
+    $msgStr = [string]$Message
+    if ([string]::IsNullOrWhiteSpace($msgStr)) { return }
+    if ($Level -eq 'Output') {
+      if (-not $script:LoggerCaptureOutput) { return }
+      $logLevel = 'Info'
+    } else {
+      $logLevel = $Level
+    }
+    $params = @{ Level = $logLevel; Message = $msgStr }
+    if ($EventId) { $params.EventId = $EventId }
+    if ($Data)    { $params.Data = $Data }
+    Write-CDLogEvent @params
+  }
+}
+
+function Complete-CDActivity {
+  param(
+    [int]$ExitCode,
+    [string]$Command,
+    [string]$Message
+  )
+  if (-not $script:LoggerAvailable) { return }
+  $result = New-CDActivityResult `
+    -ToolVersion $ToolVersion `
+    -Activity $Command `
+    -ExitCode $ExitCode `
+    -Message $Message
+  Write-Information -MessageData $result -Tags @('CDLog', 'ActivityResult')
+}
+# END-CD-HOSTLOG
+
 # Platform -> compiler base-name map; shared by Get-DccReadiness and Get-MSBuildReadiness.
 $script:CompilerMap = @{
   'Win32'        = 'dcc32'
@@ -548,8 +638,10 @@ function Resolve-DefaultDataFilePath {
   #   <scriptDir>/delphi-compiler-versions.json
   # Checked first so a locally deployed dataset takes precedence over the submodule.
   $siblingPath = Join-Path $scriptDir 'delphi-compiler-versions.json'
+  Write-CDHostLog -Level Verbose -Message "Dataset candidate 1 (sibling): $siblingPath"
 
   if (Test-Path -LiteralPath $siblingPath) {
+    Write-CDHostLog -Level Verbose -Message "Dataset resolved to sibling file"
     return $siblingPath
   }
 
@@ -559,12 +651,15 @@ function Resolve-DefaultDataFilePath {
   $repoRoot      = Split-Path $scriptDir -Parent
   $specRoot      = Join-Path (Join-Path $repoRoot 'submodules') 'delphi-compiler-versions'
   $submodulePath = Join-Path (Join-Path $specRoot 'data') 'delphi-compiler-versions.json'
+  Write-CDHostLog -Level Verbose -Message "Dataset candidate 2 (submodule): $submodulePath"
 
   if (Test-Path -LiteralPath $submodulePath) {
+    Write-CDHostLog -Level Verbose -Message "Dataset resolved to submodule file"
     return $submodulePath
   }
 
   # Neither found: return $null to signal the caller to use embedded data.
+  Write-CDHostLog -Level Verbose -Message "No external dataset found; will use embedded data"
   return $null
 }
 
@@ -575,10 +670,14 @@ function Import-JsonData {
     throw "Data file not found: $Path"
   }
 
+  Write-CDHostLog -Level Verbose -Message "Loading dataset from: $Path"
   # Use -Raw to avoid array-of-lines behavior
   $text = Get-Content -LiteralPath $Path -Raw
   try {
-    return $text | ConvertFrom-Json
+    $parsed = $text | ConvertFrom-Json
+    $versionCount = if ($null -ne $parsed.versions) { @($parsed.versions).Count } else { 0 }
+    Write-CDHostLog -Level Verbose -Message "Dataset loaded: $versionCount version entries" -Data @{ path = $Path; versionCount = $versionCount }
+    return $parsed
   } catch {
     throw "Failed to parse JSON in data file: $Path. $($_.Exception.Message)"
   }
@@ -591,7 +690,7 @@ function Write-JsonOutput {
     [object]$Object
   )
   # Single write to stdout; stable for CI.
-  Write-Output ($Object | ConvertTo-Json -Depth 10 -Compress)
+  Write-CDHostLog -Level Output -Message ($Object | ConvertTo-Json -Depth 10 -Compress)
 }
 
 function Write-JsonError {
@@ -626,7 +725,7 @@ function Write-VersionInfo {
   }
 
   if ($Format -eq 'object') {
-    Write-Output ([pscustomobject]@{
+    Write-CDHostLog -Level Output -Message ([pscustomobject]@{
       schemaVersion    = $schemaVersion
       dataVersion      = $dataVersion
       generatedUtcDate = $generated
@@ -648,11 +747,11 @@ function Write-VersionInfo {
     return
   }
 
-  Write-Output ("delphi-inspect {0}" -f $ToolVersion)
-  Write-Output ("dataVersion     {0}" -f $dataVersion)
-  Write-Output ("schemaVersion   {0}" -f $schemaVersion)
+  Write-CDHostLog -Level Output -Message ("delphi-inspect {0}" -f $ToolVersion)
+  Write-CDHostLog -Level Output -Message ("dataVersion     {0}" -f $dataVersion)
+  Write-CDHostLog -Level Output -Message ("schemaVersion   {0}" -f $schemaVersion)
   if (-not [string]::IsNullOrWhiteSpace($generated)) {
-    Write-Output ("generated       {0}" -f $generated)
+    Write-CDHostLog -Level Output -Message ("generated       {0}" -f $generated)
   }
 }
 
@@ -693,7 +792,7 @@ function Write-ResolveOutput {
   )
 
   if ($Format -eq 'object') {
-    Write-Output ([pscustomobject]@{
+    Write-CDHostLog -Level Output -Message ([pscustomobject]@{
       verDefine          = $Entry.verDefine
       productName        = $Entry.productName
       compilerVersion    = $Entry.compilerVersion
@@ -722,17 +821,17 @@ function Write-ResolveOutput {
   }
 
   # Label column is 20 chars wide to accommodate 'regKeyRelativePath'
-  Write-Output ("verDefine           {0}" -f $Entry.verDefine)
-  Write-Output ("productName         {0}" -f $Entry.productName)
-  Write-Output ("compilerVersion     {0}" -f $Entry.compilerVersion)
+  Write-CDHostLog -Level Output -Message ("verDefine           {0}" -f $Entry.verDefine)
+  Write-CDHostLog -Level Output -Message ("productName         {0}" -f $Entry.productName)
+  Write-CDHostLog -Level Output -Message ("compilerVersion     {0}" -f $Entry.compilerVersion)
   if (-not [string]::IsNullOrWhiteSpace($Entry.packageVersion)) {
-    Write-Output ("packageVersion      {0}" -f $Entry.packageVersion)
+    Write-CDHostLog -Level Output -Message ("packageVersion      {0}" -f $Entry.packageVersion)
   }
   if (-not [string]::IsNullOrWhiteSpace($Entry.regKeyRelativePath)) {
-    Write-Output ("regKeyRelativePath  {0}" -f $Entry.regKeyRelativePath)
+    Write-CDHostLog -Level Output -Message ("regKeyRelativePath  {0}" -f $Entry.regKeyRelativePath)
   }
   if ($null -ne $Entry.aliases -and $Entry.aliases.Count -gt 0) {
-    Write-Output ("aliases             {0}" -f ($Entry.aliases -join ', '))
+    Write-CDHostLog -Level Output -Message ("aliases             {0}" -f ($Entry.aliases -join ', '))
   }
 }
 
@@ -745,7 +844,7 @@ function Write-LocateOutput {
   )
 
   if ($Format -eq 'object') {
-    Write-Output ([pscustomobject]@{
+    Write-CDHostLog -Level Output -Message ([pscustomobject]@{
       verDefine   = $Entry.verDefine
       productName = $Entry.productName
       rootDir     = $RootDir
@@ -768,9 +867,9 @@ function Write-LocateOutput {
   }
 
   # text format -- label column matches -Resolve at 20 chars
-  Write-Output ("verDefine           {0}" -f $Entry.verDefine)
-  Write-Output ("productName         {0}" -f $Entry.productName)
-  Write-Output ("rootDir             {0}" -f $RootDir)
+  Write-CDHostLog -Level Output -Message ("verDefine           {0}" -f $Entry.verDefine)
+  Write-CDHostLog -Level Output -Message ("productName         {0}" -f $Entry.productName)
+  Write-CDHostLog -Level Output -Message ("rootDir             {0}" -f $RootDir)
 }
 
 function Write-ListKnownOutput {
@@ -782,7 +881,7 @@ function Write-ListKnownOutput {
 
   if ($Format -eq 'object') {
     foreach ($entry in $Data.versions) {
-      Write-Output ([pscustomobject]@{
+      Write-CDHostLog -Level Output -Message ([pscustomobject]@{
         verDefine          = $entry.verDefine
         productName        = $entry.productName
         compilerVersion    = $entry.compilerVersion
@@ -824,7 +923,7 @@ function Write-ListKnownOutput {
   # Text: entry list -- fixed-width columns
   # verDefine 12, compilerVersion 10, packageVersion 6, productName (trailing)
   foreach ($entry in $Data.versions) {
-    Write-Output ("{0,-12}{1,-10}{2,-6}{3}" -f `
+    Write-CDHostLog -Level Output -Message ("{0,-12}{1,-10}{2,-6}{3}" -f `
       $entry.verDefine, $entry.compilerVersion, $entry.packageVersion, $entry.productName)
   }
 }
@@ -835,6 +934,7 @@ function Get-RegistryRootDir {
   $subKey = $RelativePath.TrimStart('\')
 
   foreach ($hive in @([Microsoft.Win32.RegistryHive]::CurrentUser, [Microsoft.Win32.RegistryHive]::LocalMachine)) {
+    $hiveName = if ($hive -eq [Microsoft.Win32.RegistryHive]::CurrentUser) { 'HKCU' } else { 'HKLM' }
     $baseKey = $null
     $regKey  = $null
     try {
@@ -843,14 +943,19 @@ function Get-RegistryRootDir {
       if ($null -ne $regKey) {
         $val = $regKey.GetValue('RootDir')
         if (-not [string]::IsNullOrWhiteSpace([string]$val)) {
+          Write-CDHostLog -Level Debug -Message "Registry RootDir found in ${hiveName}: $subKey = $val"
           return [string]$val
         }
+        Write-CDHostLog -Level Debug -Message "Registry key found in ${hiveName}: $subKey but RootDir is empty"
+      } else {
+        Write-CDHostLog -Level Debug -Message "Registry key not found in ${hiveName}: $subKey"
       }
     } finally {
       if ($null -ne $regKey)  { $regKey.Close()  }
       if ($null -ne $baseKey) { $baseKey.Close() }
     }
   }
+  Write-CDHostLog -Level Debug -Message "Registry RootDir not found in any hive: $subKey"
   return $null
 }
 
@@ -899,7 +1004,7 @@ function Get-DccReadiness {
   }
 
   if ($null -eq $Entry.supportedBuildSystems -or $null -eq $Entry.supportedPlatforms) {
-    Write-Warning "Entry '$($Entry.verDefine)' is missing supportedBuildSystems or supportedPlatforms -- treating as notApplicable"
+    Write-CDHostLog -Level Warning -Message "Entry '$($Entry.verDefine)' is missing supportedBuildSystems or supportedPlatforms -- treating as notApplicable"
     $result.readiness = 'notApplicable'
     return $result
   }
@@ -934,6 +1039,8 @@ function Get-DccReadiness {
     $result.readiness = 'partialInstall'
   }
 
+  Write-CDHostLog -Level Debug -Message "DCC readiness: $($Entry.verDefine) = $($result.readiness)" `
+    -Data @{ verDefine = $Entry.verDefine; readiness = $result.readiness; platform = $Platform }
   return $result
 }
 
@@ -960,7 +1067,7 @@ function Get-MSBuildReadiness {
   }
 
   if ($null -eq $Entry.supportedBuildSystems -or $null -eq $Entry.supportedPlatforms) {
-    Write-Warning "Entry '$($Entry.verDefine)' is missing supportedBuildSystems or supportedPlatforms -- treating as notApplicable"
+    Write-CDHostLog -Level Warning -Message "Entry '$($Entry.verDefine)' is missing supportedBuildSystems or supportedPlatforms -- treating as notApplicable"
     $result.readiness = 'notApplicable'
     return $result
   }
@@ -1005,6 +1112,8 @@ function Get-MSBuildReadiness {
     $result.readiness = 'partialInstall'
   }
 
+  Write-CDHostLog -Level Debug -Message "MSBuild readiness: $($Entry.verDefine) = $($result.readiness)" `
+    -Data @{ verDefine = $Entry.verDefine; readiness = $result.readiness; platform = $Platform }
   return $result
 }
 
@@ -1018,7 +1127,7 @@ function Write-ListInstalledOutput {
   )
 
   if ($Format -eq 'object') {
-    foreach ($inst in $Installations) { Write-Output $inst }
+    foreach ($inst in $Installations) { Write-CDHostLog -Level Output -Message $inst }
     return
   }
 
@@ -1068,39 +1177,39 @@ function Write-ListInstalledOutput {
   # Text format: emit everything received (filtering is done by the caller via -Readiness)
   # @() ensures Count is available even when $Installations binds as $null under StrictMode
   if (@($Installations).Count -eq 0) {
-    Write-Output 'No installations found'
+    Write-CDHostLog -Level Output -Message 'No installations found'
     return
   }
 
   $firstBlock = $true
   foreach ($inst in $Installations) {
-    if (-not $firstBlock) { Write-Output '' }
+    if (-not $firstBlock) { Write-CDHostLog -Level Output -Message '' }
     $firstBlock = $false
 
     $regFoundStr    = if ($null -ne $inst.registryFound)  { $inst.registryFound.ToString().ToLower()  } else { 'null' }
     $rootDirStr     = if ($null -ne $inst.rootDir)         { $inst.rootDir                              } else { 'null' }
     $rootExistsStr  = if ($null -ne $inst.rootDirExists)   { $inst.rootDirExists.ToString().ToLower()   } else { 'null' }
-    Write-Output ("{0,-10} {1}" -f $inst.verDefine, $inst.productName)
-    Write-Output ("  {0,-26}{1}" -f 'readiness', $inst.readiness)
-    Write-Output ("  {0,-26}{1}" -f 'registryFound', $regFoundStr)
-    Write-Output ("  {0,-26}{1}" -f 'rootDir', $rootDirStr)
-    Write-Output ("  {0,-26}{1}" -f 'rootDirExists', $rootExistsStr)
+    Write-CDHostLog -Level Output -Message ("{0,-10} {1}" -f $inst.verDefine, $inst.productName)
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'readiness', $inst.readiness)
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'registryFound', $regFoundStr)
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rootDir', $rootDirStr)
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rootDirExists', $rootExistsStr)
     if ($BuildSystem -eq 'DCC') {
       $compFoundStr = if ($null -ne $inst.compilerFound) { $inst.compilerFound.ToString().ToLower() } else { 'null' }
       $cfgFoundStr  = if ($null -ne $inst.cfgFound)      { $inst.cfgFound.ToString().ToLower()      } else { 'null' }
-      Write-Output ("  {0,-26}{1}" -f 'compilerFound', $compFoundStr)
-      Write-Output ("  {0,-26}{1}" -f 'cfgFound', $cfgFoundStr)
+      Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'compilerFound', $compFoundStr)
+      Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'cfgFound', $cfgFoundStr)
     } else {
       $rsvPathStr     = if ($null -ne $inst.rsvarsPath)               { $inst.rsvarsPath                                    } else { 'null' }
       $rsvFoundStr    = if ($null -ne $inst.rsvarsFound)              { $inst.rsvarsFound.ToString().ToLower()              } else { 'null' }
       $compFoundStr   = if ($null -ne $inst.compilerFound)            { $inst.compilerFound.ToString().ToLower()            } else { 'null' }
       $envOptFoundStr = if ($null -ne $inst.envOptionsFound)          { $inst.envOptionsFound.ToString().ToLower()          } else { 'null' }
       $hasLibStr      = if ($null -ne $inst.envOptionsHasLibraryPath) { $inst.envOptionsHasLibraryPath.ToString().ToLower() } else { 'null' }
-      Write-Output ("  {0,-26}{1}" -f 'rsvarsPath', $rsvPathStr)
-      Write-Output ("  {0,-26}{1}" -f 'rsvarsFound', $rsvFoundStr)
-      Write-Output ("  {0,-26}{1}" -f 'compilerFound', $compFoundStr)
-      Write-Output ("  {0,-26}{1}" -f 'envOptionsFound', $envOptFoundStr)
-      Write-Output ("  {0,-26}{1}" -f 'envOptionsHasLibraryPath', $hasLibStr)
+      Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rsvarsPath', $rsvPathStr)
+      Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rsvarsFound', $rsvFoundStr)
+      Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'compilerFound', $compFoundStr)
+      Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'envOptionsFound', $envOptFoundStr)
+      Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'envOptionsHasLibraryPath', $hasLibStr)
     }
   }
 }
@@ -1115,7 +1224,7 @@ function Write-DetectLatestOutput {
   )
 
   if ($Format -eq 'object') {
-    if ($null -ne $Installation) { Write-Output $Installation }
+    if ($null -ne $Installation) { Write-CDHostLog -Level Output -Message $Installation }
     return
   }
 
@@ -1163,26 +1272,26 @@ function Write-DetectLatestOutput {
   }
 
   if ($null -eq $Installation) {
-    Write-Output 'No ready installation found'
+    Write-CDHostLog -Level Output -Message 'No ready installation found'
     return
   }
 
-  Write-Output ("{0,-10} {1}" -f $Installation.verDefine, $Installation.productName)
-  Write-Output ("  {0,-26}{1}" -f 'readiness', $Installation.readiness)
-  Write-Output ("  {0,-26}{1}" -f 'registryFound', $Installation.registryFound.ToString().ToLower())
-  Write-Output ("  {0,-26}{1}" -f 'rootDir', $Installation.rootDir)
-  Write-Output ("  {0,-26}{1}" -f 'rootDirExists', $Installation.rootDirExists.ToString().ToLower())
+  Write-CDHostLog -Level Output -Message ("{0,-10} {1}" -f $Installation.verDefine, $Installation.productName)
+  Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'readiness', $Installation.readiness)
+  Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'registryFound', $Installation.registryFound.ToString().ToLower())
+  Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rootDir', $Installation.rootDir)
+  Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rootDirExists', $Installation.rootDirExists.ToString().ToLower())
   if ($BuildSystem -eq 'DCC') {
-    Write-Output ("  {0,-26}{1}" -f 'compilerFound', $Installation.compilerFound.ToString().ToLower())
-    Write-Output ("  {0,-26}{1}" -f 'cfgFound', $Installation.cfgFound.ToString().ToLower())
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'compilerFound', $Installation.compilerFound.ToString().ToLower())
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'cfgFound', $Installation.cfgFound.ToString().ToLower())
   } else {
-    Write-Output ("  {0,-26}{1}" -f 'rsvarsPath', $Installation.rsvarsPath)
-    Write-Output ("  {0,-26}{1}" -f 'rsvarsFound', $Installation.rsvarsFound.ToString().ToLower())
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rsvarsPath', $Installation.rsvarsPath)
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'rsvarsFound', $Installation.rsvarsFound.ToString().ToLower())
     $compFoundStr = if ($null -ne $Installation.compilerFound) { $Installation.compilerFound.ToString().ToLower() } else { 'null' }
-    Write-Output ("  {0,-26}{1}" -f 'compilerFound', $compFoundStr)
-    Write-Output ("  {0,-26}{1}" -f 'envOptionsFound', $Installation.envOptionsFound.ToString().ToLower())
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'compilerFound', $compFoundStr)
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'envOptionsFound', $Installation.envOptionsFound.ToString().ToLower())
     $hasLibStr = if ($null -ne $Installation.envOptionsHasLibraryPath) { $Installation.envOptionsHasLibraryPath.ToString().ToLower() } else { 'null' }
-    Write-Output ("  {0,-26}{1}" -f 'envOptionsHasLibraryPath', $hasLibStr)
+    Write-CDHostLog -Level Output -Message ("  {0,-26}{1}" -f 'envOptionsHasLibraryPath', $hasLibStr)
   }
 }
 
@@ -1203,6 +1312,7 @@ try {
   $doVersion = $Version
   if (-not $doVersion -and -not $Resolve -and -not $Locate -and -not $ListKnown -and -not $ListInstalled -and -not $DetectLatest) { $doVersion = $true }
   $commandName = if ($Resolve) { 'resolve' } elseif ($Locate) { 'locate' } elseif ($ListKnown) { 'listKnown' } elseif ($ListInstalled) { 'listInstalled' } elseif ($DetectLatest) { 'detectLatest' } else { 'version' }
+  Write-CDHostLog -Level Verbose -Message "Command: $commandName, Format: $Format"
 
   $useEmbedded = $false
   if ([string]::IsNullOrWhiteSpace($DataFile)) {
@@ -1220,6 +1330,9 @@ try {
   # a single exit at the script's top level.  That eliminates scattered exit
   # calls and makes the code table easy to audit in one place.
   try {
+    if ($useEmbedded) {
+      Write-CDHostLog -Level Verbose -Message "Using embedded dataset"
+    }
     $data = if ($useEmbedded) {
       $EmbeddedData | ConvertFrom-Json
     } else {
@@ -1229,13 +1342,15 @@ try {
     if ($Format -eq 'json') {
       Write-JsonError -ToolVersion $ToolVersion -Command $commandName -Code $ExitDatasetError -Message $_.Exception.Message
     } else {
-      Write-Error $_.Exception.Message -ErrorAction Continue
+      Write-CDHostLog -Level Error -Message $_.Exception.Message -EventId 'DATASET-ERROR'
     }
+    Complete-CDActivity -ExitCode $ExitDatasetError -Command $commandName -Message $_.Exception.Message
     exit $ExitDatasetError
   }
 
   if ($doVersion) {
     Write-VersionInfo -ToolVersion $ToolVersion -Data $data -Format $Format
+    Complete-CDActivity -ExitCode $ExitSuccess -Command 'version'
     exit $ExitSuccess
   }
 
@@ -1245,11 +1360,13 @@ try {
       if ($Format -eq 'json') {
         Write-JsonError -ToolVersion $ToolVersion -Command 'resolve' -Code $ExitAliasNotFound -Message "Alias not found: $Name"
       } else {
-        Write-Error "Alias not found: $Name" -ErrorAction Continue
+        Write-CDHostLog -Level Error -Message "Alias not found: $Name" -EventId 'ALIAS-NOT-FOUND'
       }
+      Complete-CDActivity -ExitCode $ExitAliasNotFound -Command 'resolve' -Message "Alias not found: $Name"
       exit $ExitAliasNotFound
     }
     Write-ResolveOutput -Entry $entry -ToolVersion $ToolVersion -Format $Format
+    Complete-CDActivity -ExitCode $ExitSuccess -Command 'resolve'
     exit $ExitSuccess
   }
 
@@ -1259,16 +1376,18 @@ try {
       if ($Format -eq 'json') {
         Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitAliasNotFound -Message "Alias not found: $Name"
       } else {
-        Write-Error "Alias not found: $Name" -ErrorAction Continue
+        Write-CDHostLog -Level Error -Message "Alias not found: $Name" -EventId 'ALIAS-NOT-FOUND'
       }
+      Complete-CDActivity -ExitCode $ExitAliasNotFound -Command 'locate' -Message "Alias not found: $Name"
       exit $ExitAliasNotFound
     }
     if ([string]::IsNullOrWhiteSpace($entry.regKeyRelativePath)) {
       if ($Format -eq 'json') {
         Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitNoInstallationsFound -Message "No registry path known for: $Name"
       } else {
-        Write-Error "No registry path known for: $Name" -ErrorAction Continue
+        Write-CDHostLog -Level Error -Message "No registry path known for: $Name" -EventId 'NO-REGISTRY-PATH'
       }
+      Complete-CDActivity -ExitCode $ExitNoInstallationsFound -Command 'locate' -Message "No registry path known for: $Name"
       exit $ExitNoInstallationsFound
     }
     $rootDir = $null
@@ -1278,24 +1397,28 @@ try {
       if ($Format -eq 'json') {
         Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitRegistryError -Message "Registry access failed: $($_.Exception.Message)"
       } else {
-        Write-Error "Registry access failed: $($_.Exception.Message)" -ErrorAction Continue
+        Write-CDHostLog -Level Error -Message "Registry access failed: $($_.Exception.Message)" -EventId 'REGISTRY-ERROR'
       }
+      Complete-CDActivity -ExitCode $ExitRegistryError -Command 'locate' -Message "Registry access failed: $($_.Exception.Message)"
       exit $ExitRegistryError
     }
     if ($null -eq $rootDir) {
       if ($Format -eq 'json') {
         Write-JsonError -ToolVersion $ToolVersion -Command 'locate' -Code $ExitNoInstallationsFound -Message "Not installed: $Name"
       } else {
-        Write-Error "Not installed: $Name" -ErrorAction Continue
+        Write-CDHostLog -Level Error -Message "Not installed: $Name" -EventId 'NOT-INSTALLED'
       }
+      Complete-CDActivity -ExitCode $ExitNoInstallationsFound -Command 'locate' -Message "Not installed: $Name"
       exit $ExitNoInstallationsFound
     }
     Write-LocateOutput -Entry $entry -RootDir $rootDir -ToolVersion $ToolVersion -Format $Format
+    Complete-CDActivity -ExitCode $ExitSuccess -Command 'locate'
     exit $ExitSuccess
   }
 
   if ($ListKnown) {
     Write-ListKnownOutput -Data $data -ToolVersion $ToolVersion -Format $Format
+    Complete-CDActivity -ExitCode $ExitSuccess -Command 'listKnown'
     exit $ExitSuccess
   }
 
@@ -1313,8 +1436,9 @@ try {
       if ($Format -eq 'json') {
         Write-JsonError -ToolVersion $ToolVersion -Command 'listInstalled' -Code $ExitRegistryError -Message "Registry access failed: $($_.Exception.Message)"
       } else {
-        Write-Error "Registry access failed: $($_.Exception.Message)" -ErrorAction Continue
+        Write-CDHostLog -Level Error -Message "Registry access failed: $($_.Exception.Message)" -EventId 'REGISTRY-ERROR'
       }
+      Complete-CDActivity -ExitCode $ExitRegistryError -Command 'listInstalled' -Message "Registry access failed: $($_.Exception.Message)"
       exit $ExitRegistryError
     }
     if ('all' -in $Readiness) {
@@ -1323,7 +1447,11 @@ try {
       $filtered = @($installations | Where-Object { $_.readiness -in $Readiness })
     }
     Write-ListInstalledOutput -Installations $filtered -Platform $Platform -BuildSystem $BuildSystem -ToolVersion $ToolVersion -Format $Format
-    if ($filtered.Count -eq 0) { exit $ExitNoInstallationsFound }
+    if ($filtered.Count -eq 0) {
+      Complete-CDActivity -ExitCode $ExitNoInstallationsFound -Command 'listInstalled' -Message 'No installations found'
+      exit $ExitNoInstallationsFound
+    }
+    Complete-CDActivity -ExitCode $ExitSuccess -Command 'listInstalled'
     exit $ExitSuccess
   }
 
@@ -1341,24 +1469,33 @@ try {
       if ($Format -eq 'json') {
         Write-JsonError -ToolVersion $ToolVersion -Command 'detectLatest' -Code $ExitRegistryError -Message "Registry access failed: $($_.Exception.Message)"
       } else {
-        Write-Error "Registry access failed: $($_.Exception.Message)" -ErrorAction Continue
+        Write-CDHostLog -Level Error -Message "Registry access failed: $($_.Exception.Message)" -EventId 'REGISTRY-ERROR'
       }
+      Complete-CDActivity -ExitCode $ExitRegistryError -Command 'detectLatest' -Message "Registry access failed: $($_.Exception.Message)"
       exit $ExitRegistryError
     }
     # @() forces empty array -- Where-Object returns $null under StrictMode when no matches
     $readyEntries = @($installations | Where-Object { $_.readiness -eq 'ready' })
     $latest = if ($readyEntries.Count -gt 0) { $readyEntries[-1] } else { $null }
     Write-DetectLatestOutput -Installation $latest -Platform $Platform -BuildSystem $BuildSystem -ToolVersion $ToolVersion -Format $Format
-    if ($null -eq $latest) { exit $ExitNoInstallationsFound }
+    if ($null -eq $latest) {
+      Complete-CDActivity -ExitCode $ExitNoInstallationsFound -Command 'detectLatest' -Message 'No ready installation found'
+      exit $ExitNoInstallationsFound
+    }
+    Complete-CDActivity -ExitCode $ExitSuccess -Command 'detectLatest'
     exit $ExitSuccess
   }
 
+  Complete-CDActivity -ExitCode $ExitSuccess -Command $commandName
   exit $ExitSuccess
 } catch {
+  $errMsg = if ([string]::IsNullOrWhiteSpace($_.Exception.Message)) { $_.ToString() } else { $_.Exception.Message }
+  if ([string]::IsNullOrWhiteSpace($errMsg)) { $errMsg = 'Unknown error' }
   if ($Format -eq 'json') {
-    Write-JsonError -ToolVersion $ToolVersion -Command $commandName -Code $ExitUnexpectedError -Message $_.Exception.Message
+    Write-JsonError -ToolVersion $ToolVersion -Command $commandName -Code $ExitUnexpectedError -Message $errMsg
   } else {
-    Write-Error $_.Exception.Message -ErrorAction Continue
+    Write-CDHostLog -Level Fatal -Message $errMsg -EventId 'UNEXPECTED-ERROR'
   }
+  Complete-CDActivity -ExitCode $ExitUnexpectedError -Command $commandName -Message $errMsg
   exit $ExitUnexpectedError
 }
