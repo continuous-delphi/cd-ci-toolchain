@@ -4,10 +4,14 @@ All notable changes to this project after it's initial release
 will be documented in this file.
 
 ---
+## [1.2.1] - 2026-05-16
+- Code review/fix errant space with `ValidateSet('Win32', 'Win64', 'WinARM64EC ', 'macOS32'`
+[#36](https://github.com/continuous-delphi/delphi-inspect/issues/35)
+
 ## [1.2.0] - 2026-05-14
 
 - Support for `delphi-logger` added (opt-in structural logging for debug
-purposes. [#35](https://github.com/continuous-delphi/delphi-inspect/issues/35)
+purposes.) [#35](https://github.com/continuous-delphi/delphi-inspect/issues/35)
 
 ## [1.1.0] - 2026-04-07
 

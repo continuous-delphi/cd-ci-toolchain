@@ -98,7 +98,7 @@ param(
 
   [Parameter(ParameterSetName='ListInstalled', Mandatory=$true)]
   [Parameter(ParameterSetName='DetectLatest')]
-  [ValidateSet('Win32', 'Win64', 'WinARM64EC ', 'macOS32', 'macOS64', 'macOSARM64', 'Linux64', 'iOS32', 'iOSSimulator32', 'iOS64', 'iOSSimulator64', 'Android32', 'Android64')]
+  [ValidateSet('Win32', 'Win64', 'WinARM64EC', 'macOS32', 'macOS64', 'macOSARM64', 'Linux64', 'iOS32', 'iOSSimulator32', 'iOS64', 'iOSSimulator64', 'Android32', 'Android64')]
   [string]$Platform = 'Win32',
 
   [Parameter(ParameterSetName='ListInstalled', Mandatory=$true)]
@@ -122,7 +122,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # Tool version
-$ToolVersion = '1.2.0'
+$ToolVersion = '1.2.1'
 
 # Exit code constants -- single source of truth for the exit code contract.
 $ExitSuccess              = 0   # normal completion
